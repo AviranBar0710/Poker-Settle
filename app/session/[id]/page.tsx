@@ -65,6 +65,12 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+import { PlayerActionsSheet } from "@/components/session/PlayerActionsSheet"
+import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
+import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
+import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
+import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
+import { useSessionStage } from "@/hooks/useSessionStage"
 
 type Step = "setup" | "buyins" | "cashouts" | "results" | "share"
 
@@ -83,12 +89,22 @@ export default function SessionPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [copiedSummary, setCopiedSummary] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
-  const [chipEntryMode, setChipEntryMode] = useState(false) // UI-only state for chip entry phase
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [fixedBuyinAmount, setFixedBuyinAmount] = useState<number | null>(null)
   const [showFixedBuyinDialog, setShowFixedBuyinDialog] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [actionsPlayerId, setActionsPlayerId] = useState<string | null>(null)
+  const [addBuyinPlayer, setAddBuyinPlayer] = useState<Player | null>(null)
+  const [addCashoutPlayer, setAddCashoutPlayer] = useState<Player | null>(null)
+  const [removePlayerConfirm, setRemovePlayerConfirm] = useState<Player | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
   const hasLoadedOnce = useRef(false)
+
+  useEffect(() => {
+    if (!toastMessage) return
+    const t = setTimeout(() => setToastMessage(null), 2000)
+    return () => clearTimeout(t)
+  }, [toastMessage])
 
   // Transaction state and handlers (extracted to hook)
   const {
@@ -228,6 +244,7 @@ export default function SessionPage() {
             createdAt: data.created_at,
             finalizedAt: data.finalized_at || undefined,
             clubId: data.club_id, // Store for inserts
+            chip_entry_started_at: data.chip_entry_started_at || undefined,
           }
           
           // Immediately check if session belongs to active club
@@ -349,6 +366,44 @@ export default function SessionPage() {
       loadSession()
   }, [sessionId, isLoadingClubs, activeClubId, router])
 
+  // Stage engine hook
+  const {
+    stage,
+    missingBuyinsPlayerIds,
+    canStartChipEntry,
+    startChipEntryBlockedReason,
+    startChipEntry,
+    isStartingChipEntry,
+  } = useSessionStage({
+    sessionId,
+    session,
+    players,
+    transactions,
+    setError,
+    reloadSession: () => {
+      // Reload session data to reflect chip_entry_started_at change
+      if (!session) return
+      supabase
+        .from("sessions")
+        .select("*")
+        .eq("id", sessionId)
+        .single()
+        .then(({ data, error }) => {
+          if (!error && data) {
+            setSession({
+              id: data.id,
+              name: data.name,
+              currency: data.currency as "USD" | "ILS" | "EUR",
+              createdAt: data.created_at,
+              finalizedAt: data.finalized_at || undefined,
+              clubId: data.club_id,
+              chip_entry_started_at: data.chip_entry_started_at || undefined,
+            })
+          }
+        })
+    },
+  })
+
   const reloadSession = async () => {
     console.log("🔵 [DEBUG] Reloading session from Supabase:", sessionId)
     
@@ -446,16 +501,15 @@ export default function SessionPage() {
   const totalsDontBalance = Math.abs(totalProfitLoss) > BALANCE_TOLERANCE
 
   const isFinalized = session?.finalizedAt !== undefined
-
-  // Calculate current workflow phase (UI-only, derived from existing data)
   const hasCashouts = transactions.some((t) => t.type === "cashout")
-  const getCurrentPhase = (): "active_game" | "chip_entry" | "ready_to_finalize" | "finalized" => {
-    if (isFinalized) return "finalized"
-    if (hasCashouts) return "ready_to_finalize"
-    if (chipEntryMode) return "chip_entry"
+
+  // Map stage engine output to existing currentPhase (for backward compat)
+  const currentPhase = (() => {
+    if (stage === "finalized") return "finalized"
+    if (stage === "chip_entry") return hasCashouts ? "ready_to_finalize" : "chip_entry"
+    if (stage === "buyins" || stage === "player_setup") return "active_game"
     return "active_game"
-  }
-  const currentPhase = getCurrentPhase()
+  })()
 
   // DEBUG: Calculate settlement from Supabase transactions (memoized)
   // NOTE: Must be called before early returns to maintain hook order
@@ -740,22 +794,21 @@ export default function SessionPage() {
                 </Button>
               )}
             {currentPhase === "active_game" && !hasCashouts && (
-              <Button
-                onClick={() => setChipEntryMode(true)}
-                size="sm"
+              <div className="flex flex-col items-end gap-1">
+                <Button
+                  onClick={startChipEntry}
+                  size="sm"
                   variant="outline"
-              >
-                Start Chip Entry
-              </Button>
-            )}
-            {currentPhase === "chip_entry" && (
-              <Button
-                onClick={() => setChipEntryMode(false)}
-                size="sm"
-                variant="outline"
-              >
-                Back to Active Game
-              </Button>
+                  disabled={!canStartChipEntry || isStartingChipEntry}
+                >
+                  {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
+                </Button>
+                {!canStartChipEntry && startChipEntryBlockedReason && (
+                  <span className="text-xs text-destructive">
+                    {startChipEntryBlockedReason}
+                  </span>
+                )}
+              </div>
             )}
             </div>
           </div>
@@ -769,9 +822,10 @@ export default function SessionPage() {
             currentPhase={currentPhase}
             user={user}
             userAlreadyLinked={userAlreadyLinkedToAnyPlayer}
-            onRowClick={(playerId) => setEditingPlayerId(playerId)}
+            onRowClick={(playerId) => setActionsPlayerId(playerId)}
             onAddPlayerClick={() => setEditingPlayerId("new")}
             onLinkIdentity={handleLinkIdentity}
+            missingBuyinsPlayerIds={missingBuyinsPlayerIds}
           />
 
           {/* Settlement Preview - Enhanced Two-Column Layout */}
@@ -1137,6 +1191,130 @@ export default function SessionPage() {
           )}
         </div>
 
+        {/* Player Actions Sheet — row tap opens this; Add Buy-in / Add Cash-out open their sheets */}
+        {actionsPlayerId && session && session.clubId && (() => {
+          const actionsPlayer = players.find((p) => p.id === actionsPlayerId) ?? null
+          const result = playerResults.find((r) => r.player.id === actionsPlayerId)
+          const formattedBalance = result
+            ? `${session.currency} ${(result.totalBuyins - result.totalCashouts).toFixed(2)}`
+            : `${session.currency} 0.00`
+          return (
+            <PlayerActionsSheet
+              open={!!actionsPlayerId}
+              onOpenChange={(open) => !open && setActionsPlayerId(null)}
+              player={actionsPlayer}
+              formattedBalance={formattedBalance}
+              currency={session.currency}
+              allowCashOut={
+                currentPhase === "chip_entry" || currentPhase === "ready_to_finalize"
+              }
+              onAction={(action: PlayerActionType, player: Player) => {
+                if (action === "add-buyin") {
+                  setAddBuyinPlayer(player)
+                  setActionsPlayerId(null)
+                } else if (action === "add-cashout") {
+                  setAddCashoutPlayer(player)
+                  setActionsPlayerId(null)
+                } else if (action === "remove-player") {
+                  setRemovePlayerConfirm(player)
+                  setActionsPlayerId(null)
+                } else if (action === "edit-name" || action === "view-transactions") {
+                  setEditingPlayerId(player.id)
+                  setActionsPlayerId(null)
+                }
+              }}
+            />
+          )
+        })()}
+
+        {/* Add Buy-in Sheet (mobile-only) */}
+        {addBuyinPlayer && session && session.clubId && (
+          <AddBuyinSheet
+            open={!!addBuyinPlayer}
+            onOpenChange={(open) => !open && setAddBuyinPlayer(null)}
+            player={addBuyinPlayer}
+            sessionId={sessionId}
+            clubId={session.clubId}
+            currency={session.currency}
+            onSuccess={() => {
+              reloadTransactions()
+              reloadPlayers()
+            }}
+            onToast={setToastMessage}
+          />
+        )}
+
+        {/* Add Cash-out Sheet (mobile-only) */}
+        {addCashoutPlayer && session && session.clubId && (() => {
+          const result = playerResults.find((r) => r.player.id === addCashoutPlayer.id)
+          const currentBalance = result ? result.totalBuyins - result.totalCashouts : 0
+          return (
+            <AddCashoutSheet
+              open={!!addCashoutPlayer}
+              onOpenChange={(open) => !open && setAddCashoutPlayer(null)}
+              player={addCashoutPlayer}
+              sessionId={sessionId}
+              clubId={session.clubId}
+              currency={session.currency}
+              currentBalance={currentBalance}
+              onSuccess={() => {
+                reloadTransactions()
+                reloadPlayers()
+              }}
+              onToast={setToastMessage}
+            />
+          )
+        })()}
+
+        {/* Remove Player confirmation */}
+        {removePlayerConfirm && session && (
+          <RemovePlayerConfirmSheet
+            open={!!removePlayerConfirm}
+            onOpenChange={(open) => !open && setRemovePlayerConfirm(null)}
+            player={removePlayerConfirm}
+            onConfirm={async () => {
+              if (!removePlayerConfirm || !session) return false
+              try {
+                const { error: txError } = await supabase
+                  .from("transactions")
+                  .delete()
+                  .eq("session_id", sessionId)
+                  .eq("player_id", removePlayerConfirm.id)
+                if (txError) {
+                  console.error("Error deleting player transactions:", txError)
+                  return false
+                }
+                const { error: playerError } = await supabase
+                  .from("players")
+                  .delete()
+                  .eq("id", removePlayerConfirm.id)
+                if (playerError) {
+                  console.error("Error deleting player:", playerError)
+                  return false
+                }
+                reloadTransactions()
+                reloadPlayers()
+                setToastMessage("Player removed")
+                return true
+              } catch (err) {
+                console.error("Unexpected error removing player:", err)
+                return false
+              }
+            }}
+          />
+        )}
+
+        {/* Toast confirmation (Buy-in added / Cash-out added) */}
+        {toastMessage && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 z-[100] min-h-[48px] flex items-center justify-center rounded-lg bg-primary text-primary-foreground text-sm font-medium shadow-lg px-4 py-3"
+          >
+            {toastMessage}
+          </div>
+        )}
+
         {/* Edit Player Dialog (used for both editing and adding) */}
         {editingPlayerId && session && session.clubId && (
           <EditPlayerDialog
@@ -1260,38 +1438,36 @@ export default function SessionPage() {
         {/* Mobile: Sticky Footer for Primary Actions */}
         {!isFinalized && currentPhase !== "ready_to_finalize" && !(hasCashouts && currentPhase === "chip_entry") && (
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg">
-            {currentPhase === "chip_entry" && !hasCashouts ? (
-              // Chip entry phase without cashouts - show Back to Active Game
-              <Button
-                onClick={() => setChipEntryMode(false)}
-                size="lg"
-                variant="outline"
-                className="w-full h-12 text-base font-medium"
-              >
-                Back to Active Game
-              </Button>
-            ) : currentPhase === "active_game" ? (
+            {currentPhase === "active_game" ? (
               // Active game phase - show both buttons like desktop
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => setEditingPlayerId("new")}
-                  size="lg"
-                  variant="default"
-                  className="flex-1 gap-2 h-12 text-base font-medium"
-                >
-                  <Plus className="h-5 w-5" />
-                  Add Player
-                </Button>
-                {!hasCashouts && (
-                  <Button
-                    onClick={() => setChipEntryMode(true)}
-                    size="lg"
-                    variant="outline"
-                    className="flex-1 h-12 text-base font-medium"
-                  >
-                    Start Chip Entry
-                  </Button>
+              <div className="space-y-2">
+                {!canStartChipEntry && startChipEntryBlockedReason && (
+                  <p className="text-xs text-destructive text-center px-2">
+                    {startChipEntryBlockedReason}
+                  </p>
                 )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setEditingPlayerId("new")}
+                    size="lg"
+                    variant="default"
+                    className="flex-1 gap-2 h-12 text-base font-medium"
+                  >
+                    <Plus className="h-5 w-5" />
+                    Add Player
+                  </Button>
+                  {!hasCashouts && (
+                    <Button
+                      onClick={startChipEntry}
+                      size="lg"
+                      variant="outline"
+                      className="flex-1 h-12 text-base font-medium"
+                      disabled={!canStartChipEntry || isStartingChipEntry}
+                    >
+                      {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
+                    </Button>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>
@@ -1852,6 +2028,7 @@ function PlayersTable({
   onRowClick,
   onAddPlayerClick,
   onLinkIdentity,
+  missingBuyinsPlayerIds = [],
 }: {
   players: Player[]
   playerResults: Array<{
@@ -1868,6 +2045,7 @@ function PlayersTable({
   onRowClick: (playerId: string) => void
   onAddPlayerClick: () => void
   onLinkIdentity: (playerId: string) => void
+  missingBuyinsPlayerIds?: string[]
 }) {
   // Phase-aware display logic helper
   const getPhaseDisplay = (result: typeof playerResults[0]) => {
@@ -1929,13 +2107,15 @@ function PlayersTable({
             {playerResults.map((result) => {
               const { showCashouts, showPL, isEditable } = getPhaseDisplay(result)
               const plColor = getPLColor(result.pl, showPL)
+              const isMissingBuyin = missingBuyinsPlayerIds.includes(result.player.id)
               
               return (
                 <Card
                   key={result.player.id}
                   className={cn(
                     "shadow-sm",
-                    isEditable && "cursor-pointer hover:bg-muted/50"
+                    isEditable && "cursor-pointer hover:bg-muted/50",
+                    isMissingBuyin && "border-destructive/30"
                   )}
                   onClick={() => isEditable && onRowClick(result.player.id)}
                 >
@@ -1945,6 +2125,11 @@ function PlayersTable({
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-bold text-base truncate">{result.player.name}</p>
+                          {isMissingBuyin && (
+                            <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
+                              No buy-in
+                            </Badge>
+                          )}
                           {user && result.player.profileId === user.id && (
                             <span className="text-xs text-muted-foreground shrink-0">(You)</span>
                           )}
@@ -2014,6 +2199,7 @@ function PlayersTable({
                   {playerResults.map((result) => {
                       const { showCashouts, showPL, isEditable } = getPhaseDisplay(result)
                       const plColor = getPLColor(result.pl, showPL)
+                      const isMissingBuyin = missingBuyinsPlayerIds.includes(result.player.id)
                     
                     return (
                       <TableRow
@@ -2027,6 +2213,11 @@ function PlayersTable({
                         <TableCell className="font-medium text-base">
                           <div className="flex items-center gap-2">
                             <span>{result.player.name}</span>
+                            {isMissingBuyin && (
+                              <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
+                                No buy-in
+                              </Badge>
+                            )}
                             {user && result.player.profileId === user.id && (
                               <span className="text-xs text-muted-foreground">(You)</span>
                             )}

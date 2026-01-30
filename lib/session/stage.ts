@@ -42,7 +42,6 @@ export function deriveSessionStage(
   if (session.finalizedAt) return "finalized"
 
   // Stage 3: Chip Entry (started)
-  // @ts-expect-error - chip_entry_started_at will be added in migration
   if (session.chip_entry_started_at) return "chip_entry"
 
   // Stage 1: Player Setup (no players yet)
@@ -95,7 +94,6 @@ export function getChipEntryGate(
   }
 
   // Already started
-  // @ts-expect-error - chip_entry_started_at will be added in migration
   if (session.chip_entry_started_at) {
     return { canStart: false, reason: "Chip entry already started" }
   }
