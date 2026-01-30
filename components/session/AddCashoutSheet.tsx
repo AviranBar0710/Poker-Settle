@@ -89,29 +89,19 @@ export function AddCashoutSheet({
     return v === "" ? null : isNaN(n) ? undefined : n
   }, [amount])
 
-  const invalid =
-    num === null ||
-    num === undefined ||
-    num <= 0 ||
-    (num !== null && num !== undefined && num > currentBalance)
+  // No balance restriction - player can cash out any positive amount
+  // (they might have won chips and have more than their buy-ins)
+  const invalid = num === null || num === undefined || num <= 0
   const canSubmit = !invalid && !loading
 
   const handleQuickAmount = (value: number) => {
-    if (value > currentBalance) return
     setAmount(value.toFixed(2))
     setError(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (
-      !player ||
-      !canSubmit ||
-      num === null ||
-      num === undefined ||
-      num <= 0 ||
-      num > currentBalance
-    )
+    if (!player || !canSubmit || num === null || num === undefined || num <= 0)
       return
 
     setError(null)
@@ -203,22 +193,10 @@ export function AddCashoutSheet({
                 </p>
               )}
 
-              {num !== null &&
-                num !== undefined &&
-                num > currentBalance &&
-                !error && (
-                  <p
-                    className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2"
-                    role="alert"
-                  >
-                    Amount cannot exceed balance ({formattedBalance})
-                  </p>
-                )}
-
               <div className="space-y-2">
                 <span className="text-xs text-muted-foreground">Quick amount</span>
                 <div className="flex flex-wrap gap-2">
-                  {QUICK_AMOUNTS.filter((value) => value <= currentBalance).map((value) => (
+                  {QUICK_AMOUNTS.map((value) => (
                     <button
                       key={value}
                       type="button"
