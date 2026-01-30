@@ -21,6 +21,7 @@ import { useUIState } from "@/contexts/UIStateContext"
 import { useClub } from "@/contexts/ClubContext"
 import { useIsDesktop } from "@/hooks/useIsDesktop"
 import { useSessionPlayers } from "@/hooks/useSessionPlayers"
+import { useSessionTransactions } from "@/hooks/useSessionTransactions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -79,9 +80,7 @@ export default function SessionPage() {
   const isDesktop = useIsDesktop()
 
   const [session, setSession] = useState<Session | null>(null)
-  const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [transactionUpdateCounter, setTransactionUpdateCounter] = useState(0)
   const [copiedSummary, setCopiedSummary] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
   const [chipEntryMode, setChipEntryMode] = useState(false) // UI-only state for chip entry phase
@@ -91,38 +90,15 @@ export default function SessionPage() {
   const [error, setError] = useState<string | null>(null)
   const hasLoadedOnce = useRef(false)
 
-  // DEBUG: Reload transactions from Supabase (defined before hook for dependency)
-  const reloadTransactions = async () => {
-    console.log("🔵 [DEBUG] Reloading transactions from Supabase for session:", sessionId)
-    
-    try {
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true })
-
-      if (transactionsError) {
-        console.error("🔴 [DEBUG] Reload transactions ERROR:", transactionsError)
-        return
-      }
-
-      if (transactionsData) {
-        const transactions: Transaction[] = transactionsData.map((t) => ({
-          id: t.id,
-          sessionId: t.session_id,
-          playerId: t.player_id,
-          type: t.type as "buyin" | "cashout",
-          amount: parseFloat(t.amount.toString()),
-          createdAt: t.created_at,
-        }))
-        setTransactions(transactions)
-        setTransactionUpdateCounter((prev) => prev + 1)
-      }
-    } catch (err) {
-      console.error("🔴 [DEBUG] Unexpected error reloading transactions:", err)
-    }
-  }
+  // Transaction state and handlers (extracted to hook)
+  const {
+    transactions,
+    setTransactions,
+    transactionUpdateCounter,
+    reloadTransactions,
+  } = useSessionTransactions({
+    sessionId,
+  })
 
   // Player state and handlers (extracted to hook)
   const {
