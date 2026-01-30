@@ -100,8 +100,13 @@ export function useSessionStage({
         .eq("id", sessionId)
 
       if (error) {
-        console.error("Error starting chip entry:", error)
-        setError(`Failed to start chip entry: ${error.message}`)
+        console.error("Error starting chip entry:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        })
+        setError(`Failed to start chip entry: ${error.message || "Unknown error"}`)
         setIsStartingChipEntry(false)
         return false
       }
