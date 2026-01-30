@@ -104,6 +104,8 @@ const BottomSheetContent = React.forwardRef<
           className
         )}
         // No close button - per mobile_ux_contract.md: Close (X) button at TOP is forbidden
+        // Prevent auto-focus on open - keyboard only opens when user taps input
+        onOpenAutoFocus={(e) => e.preventDefault()}
         {...props}
       >
         <BottomSheetDragHandle />

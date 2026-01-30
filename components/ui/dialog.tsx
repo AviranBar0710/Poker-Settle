@@ -46,6 +46,8 @@ const DialogContent = React.forwardRef<
         "md:data-[state=closed]:slide-out-to-left-1/2 md:data-[state=closed]:slide-out-to-top-[48%] md:data-[state=open]:slide-in-from-left-1/2 md:data-[state=open]:slide-in-from-top-[48%]",
         className
       )}
+      // Prevent auto-focus on open - keyboard only opens when user taps input
+      onOpenAutoFocus={(e) => e.preventDefault()}
       {...props}
     >
       {children}
