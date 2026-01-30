@@ -36,6 +36,20 @@ import { Separator } from "@/components/ui/separator"
 import { AppShell } from "@/components/layout/AppShell"
 import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BALANCE_TOLERANCE, COPY_FEEDBACK_DELAY_MS, CLOSE_DELAY_MS } from "@/lib/session/constants"
+import {
+  Transfer,
+  PlayerResult,
+  filterBuyinsByPlayer,
+  filterCashoutsByPlayer,
+  calculatePlayerResults,
+  calculateSessionTotals,
+  calculateSettlementTransfers,
+  filterWinners,
+  filterLosers,
+  sumWinnings,
+  sumLosses,
+} from "@/lib/session/calculations"
 import {
   Dialog,
   DialogContent,
@@ -50,14 +64,6 @@ import {
 } from "@/components/ui/collapsible"
 
 type Step = "setup" | "buyins" | "cashouts" | "results" | "share"
-
-type Transfer = {
-  debtorId: string
-  debtorName: string
-  creditorId: string
-  creditorName: string
-  amount: number
-}
 
 export default function SessionPage() {
   const params = useParams()
@@ -402,21 +408,11 @@ export default function SessionPage() {
 
   // Helper functions to get buyins/cashouts by player from transactions state
   const getBuyinsByPlayer = (sessionId: string, playerId: string): Transaction[] => {
-    return transactions.filter(
-      (transaction) =>
-        transaction.sessionId === sessionId &&
-        transaction.playerId === playerId &&
-        transaction.type === "buyin"
-    )
+    return filterBuyinsByPlayer(transactions, sessionId, playerId)
   }
 
   const getCashoutsByPlayer = (sessionId: string, playerId: string): Transaction[] => {
-    return transactions.filter(
-      (transaction) =>
-        transaction.sessionId === sessionId &&
-        transaction.playerId === playerId &&
-        transaction.type === "cashout"
-    )
+    return filterCashoutsByPlayer(transactions, sessionId, playerId)
   }
 
   const navigateToStep = (step: Step) => {
@@ -721,29 +717,12 @@ export default function SessionPage() {
       return { totalProfitLoss: 0, totalBuyins: 0, totalCashouts: 0 }
     }
     console.log("🔵 [DEBUG] Calculating totals from transactions:", transactions.length)
-    let totalPL = 0
-    let totalB = 0
-    let totalC = 0
-    
-    players.forEach((player) => {
-      const buyins = getBuyinsByPlayer(sessionId, player.id)
-      const cashouts = getCashoutsByPlayer(sessionId, player.id)
-      const playerBuyins = buyins.reduce((sum, buyin) => sum + buyin.amount, 0)
-      const playerCashouts = cashouts.reduce(
-        (sum, cashout) => sum + cashout.amount,
-        0
-      )
-      totalB += playerBuyins
-      totalC += playerCashouts
-      totalPL += playerCashouts - playerBuyins
-    })
-    
-    console.log("🔵 [DEBUG] Totals calculated:", { totalBuyins: totalB, totalCashouts: totalC, totalPL })
-    return { totalProfitLoss: totalPL, totalBuyins: totalB, totalCashouts: totalC }
+    const totals = calculateSessionTotals(transactions, players, sessionId)
+    console.log("🔵 [DEBUG] Totals calculated:", { totalBuyins: totals.totalBuyins, totalCashouts: totals.totalCashouts, totalPL: totals.totalProfitLoss })
+    return totals
   }, [transactions, players, sessionId])
 
-  const tolerance = 0.01
-  const totalsDontBalance = Math.abs(totalProfitLoss) > tolerance
+  const totalsDontBalance = Math.abs(totalProfitLoss) > BALANCE_TOLERANCE
 
   const isFinalized = session?.finalizedAt !== undefined
 
@@ -764,63 +743,8 @@ export default function SessionPage() {
       return []
     }
     console.log("🔵 [DEBUG] Calculating settlement from transactions")
-    type PlayerPL = {
-      playerId: string
-      playerName: string
-      pl: number
-    }
-
-    const playersPL: PlayerPL[] = players.map((player) => {
-      const buyins = getBuyinsByPlayer(sessionId, player.id)
-      const cashouts = getCashoutsByPlayer(sessionId, player.id)
-      const totalBuyins = buyins.reduce((sum, buyin) => sum + buyin.amount, 0)
-      const totalCashouts = cashouts.reduce(
-        (sum, cashout) => sum + cashout.amount,
-        0
-      )
-      const pl = totalCashouts - totalBuyins
-      return {
-        playerId: player.id,
-        playerName: player.name,
-        pl: pl,
-      }
-    })
-
-    const creditors = playersPL
-      .filter((p) => p.pl > tolerance)
-      .map((p) => ({ ...p, amount: p.pl }))
-      .sort((a, b) => b.amount - a.amount)
-
-    const debtors = playersPL
-      .filter((p) => p.pl < -tolerance)
-      .map((p) => ({ ...p, amount: -p.pl }))
-      .sort((a, b) => b.amount - a.amount)
-
-    const transfers: Transfer[] = []
-    let i = 0
-    let j = 0
-
-    while (j < creditors.length && i < debtors.length) {
-      const pay = Math.min(debtors[i].amount, creditors[j].amount)
-      transfers.push({
-        debtorId: debtors[i].playerId,
-        debtorName: debtors[i].playerName,
-        creditorId: creditors[j].playerId,
-        creditorName: creditors[j].playerName,
-        amount: pay,
-      })
-      debtors[i].amount -= pay
-      creditors[j].amount -= pay
-      if (creditors[j].amount <= tolerance) {
-        j++
-      }
-      if (debtors[i].amount <= tolerance) {
-        i++
-      }
-    }
-
-    return transfers
-  }, [transactions, players, sessionId, tolerance])
+    return calculateSettlementTransfers(transactions, players, sessionId)
+  }, [transactions, players, sessionId])
 
   // Generate settlement summary - Enhanced format
   const generateSettlementSummary = (): string => {
@@ -850,7 +774,7 @@ export default function SessionPage() {
     const allPlayers = [...winners, ...losers].sort((a, b) => Math.abs(b.pl) - Math.abs(a.pl))
     
     allPlayers.forEach((result, index) => {
-      const isWinner = result.pl > 0.01
+      const isWinner = result.pl > BALANCE_TOLERANCE
       const emoji = isWinner ? "🏆" : "💸"
       const amount = Math.abs(result.pl)
       lines.push(`${index + 1}. ${result.player.name} ${emoji} ${session.currency}${amount.toFixed(2)}`)
@@ -883,7 +807,7 @@ export default function SessionPage() {
     try {
       await navigator.clipboard.writeText(summary)
       setCopiedSummary(true)
-      setTimeout(() => setCopiedSummary(false), 2000)
+      setTimeout(() => setCopiedSummary(false), COPY_FEEDBACK_DELAY_MS)
     } catch (error) {
       console.error("Failed to copy settlement summary:", error)
     }
@@ -894,7 +818,7 @@ export default function SessionPage() {
     try {
       await navigator.clipboard.writeText(url)
       setCopiedLink(true)
-      setTimeout(() => setCopiedLink(false), 2000)
+      setTimeout(() => setCopiedLink(false), COPY_FEEDBACK_DELAY_MS)
     } catch (error) {
       console.error("Failed to copy shareable link:", error)
     }
@@ -913,43 +837,24 @@ export default function SessionPage() {
       return []
     }
     console.log("🔵 [DEBUG] Calculating player results from transactions")
-    return players.map((player) => {
-      const buyins = getBuyinsByPlayer(sessionId, player.id)
-      const cashouts = getCashoutsByPlayer(sessionId, player.id)
-      const totalBuyins = buyins.reduce((sum, buyin) => sum + buyin.amount, 0)
-      const totalCashouts = cashouts.reduce(
-        (sum, cashout) => sum + cashout.amount,
-        0
-      )
-      const pl = totalCashouts - totalBuyins
-      return {
-        player,
-        totalBuyins,
-        totalCashouts,
-        pl,
-      }
-    })
+    return calculatePlayerResults(transactions, players, sessionId)
   }, [transactions, players, sessionId])
 
   // Calculate winners and losers for settlement summary
   const winners = useMemo(() => {
-    return playerResults
-      .filter((r) => r.pl > 0.01)
-      .sort((a, b) => b.pl - a.pl)
+    return filterWinners(playerResults)
   }, [playerResults])
 
   const losers = useMemo(() => {
-    return playerResults
-      .filter((r) => r.pl < -0.01)
-      .sort((a, b) => a.pl - b.pl)
+    return filterLosers(playerResults)
   }, [playerResults])
 
   const totalWinnings = useMemo(() => {
-    return winners.reduce((sum, w) => sum + w.pl, 0)
+    return sumWinnings(winners)
   }, [winners])
 
   const totalLosses = useMemo(() => {
-    return Math.abs(losers.reduce((sum, l) => sum + l.pl, 0))
+    return sumLosses(losers)
   }, [losers])
 
   // Early returns AFTER all hooks to maintain hook order
@@ -1002,9 +907,9 @@ export default function SessionPage() {
                       <p
                         className={cn(
                           "text-base font-bold font-mono leading-none",
-                          totalProfitLoss > 0.01
+                          totalProfitLoss > BALANCE_TOLERANCE
                             ? "text-green-600 dark:text-green-500"
-                            : totalProfitLoss < -0.01
+                            : totalProfitLoss < -BALANCE_TOLERANCE
                             ? "text-red-600 dark:text-red-500"
                             : "text-muted-foreground"
                         )}
@@ -1057,9 +962,9 @@ export default function SessionPage() {
                   <p
                     className={cn(
                       "text-sm sm:text-base font-bold font-mono",
-                      totalProfitLoss > 0.01
+                      totalProfitLoss > BALANCE_TOLERANCE
                         ? "text-green-600 dark:text-green-500"
-                        : totalProfitLoss < -0.01
+                        : totalProfitLoss < -BALANCE_TOLERANCE
                         ? "text-red-600 dark:text-red-500"
                         : "text-muted-foreground"
                     )}
@@ -1960,9 +1865,9 @@ function ResultsStep({
           <div className="md:hidden space-y-3">
             {playerResults.map((result) => {
               const plColor =
-                result.pl > 0.01
+                result.pl > BALANCE_TOLERANCE
                   ? "text-green-600 dark:text-green-500"
-                  : result.pl < -0.01
+                  : result.pl < -BALANCE_TOLERANCE
                   ? "text-red-600 dark:text-red-500"
                   : "text-muted-foreground"
               return (
@@ -2009,9 +1914,9 @@ function ResultsStep({
               <TableBody>
                 {playerResults.map((result) => {
                   const plColor =
-                    result.pl > 0.01
+                    result.pl > BALANCE_TOLERANCE
                       ? "text-green-600 dark:text-green-500"
-                      : result.pl < -0.01
+                      : result.pl < -BALANCE_TOLERANCE
                       ? "text-red-600 dark:text-red-500"
                       : "text-muted-foreground"
                   return (
@@ -2263,8 +2168,8 @@ function PlayersTable({
 
   const getPLColor = (pl: number, showPL: boolean) => {
     if (!showPL) return "text-muted-foreground/50"
-    if (pl > 0.01) return "text-green-600 dark:text-green-500"
-    if (pl < -0.01) return "text-red-600 dark:text-red-500"
+    if (pl > BALANCE_TOLERANCE) return "text-green-600 dark:text-green-500"
+    if (pl < -BALANCE_TOLERANCE) return "text-red-600 dark:text-red-500"
     return "text-muted-foreground"
   }
 
@@ -2551,16 +2456,16 @@ function EditPlayerDialog({
   const previewPL = previewCashouts - previewBuyins
   
   const plColor =
-    currentPL > 0.01
+    currentPL > BALANCE_TOLERANCE
       ? "text-green-600 dark:text-green-500"
-      : currentPL < -0.01
+      : currentPL < -BALANCE_TOLERANCE
       ? "text-red-600 dark:text-red-500"
       : "text-muted-foreground"
-  
+
   const previewPLColor =
-    previewPL > 0.01
+    previewPL > BALANCE_TOLERANCE
       ? "text-green-600 dark:text-green-500"
-      : previewPL < -0.01
+      : previewPL < -BALANCE_TOLERANCE
       ? "text-red-600 dark:text-red-500"
       : "text-muted-foreground"
 
@@ -2827,7 +2732,7 @@ function EditPlayerDialog({
                     e.preventDefault()
                     onAddPlayer(e as any)
                     if (playerName.trim()) {
-                      setTimeout(() => onClose(), 100)
+                      setTimeout(() => onClose(), CLOSE_DELAY_MS)
                     }
                   }
                 }}
@@ -3060,7 +2965,7 @@ function EditPlayerDialog({
               onSubmit={(e) => {
                 onAddPlayer(e)
                 if (!isAddingPlayer && playerName.trim()) {
-                  setTimeout(() => onClose(), 100)
+                  setTimeout(() => onClose(), CLOSE_DELAY_MS)
                 }
               }}
                 className="w-full md:w-auto order-1 md:order-2"
