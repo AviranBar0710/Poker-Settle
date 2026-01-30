@@ -249,7 +249,7 @@ function PkceMissingView({
               disabled={resendState === "sending"}
               autoComplete="email"
               className="h-11"
-              autoFocus={isDesktop}
+              autoFocus={false}
             />
           </div>
           {resendError && (

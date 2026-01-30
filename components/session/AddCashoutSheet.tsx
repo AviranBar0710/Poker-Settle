@@ -79,7 +79,7 @@ export function AddCashoutSheet({
   React.useEffect(() => {
     if (open) {
       reset()
-      setTimeout(() => inputRef.current?.focus(), 100)
+      // No auto-focus: keyboard opens only when user taps the input field
     }
   }, [open, reset])
 

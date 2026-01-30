@@ -2632,7 +2632,7 @@ function EditPlayerDialog({
                 required
                 disabled={isAddingPlayer}
                 className="h-12 md:h-10 text-base md:text-sm"
-                autoFocus={isDesktop}
+                autoFocus={false}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && playerName.trim() && !isAddingPlayer) {
                     e.preventDefault()
@@ -2717,7 +2717,7 @@ function EditPlayerDialog({
                             min="0.01"
                             step="0.01"
                             className="flex-1 h-8 text-sm"
-                            autoFocus={isDesktop}
+                            autoFocus={false}
                             disabled={isSavingBuyinEdit}
                           />
                           <Button
@@ -2775,7 +2775,7 @@ function EditPlayerDialog({
                     required
                     disabled={isAddingBuyin}
                     className="flex-1"
-                    autoFocus={isDesktop && !isNewPlayer}
+                    autoFocus={false}
                   />
                   <Button type="submit" size="sm" disabled={isAddingBuyin}>
                     {isAddingBuyin ? "..." : "+"}
@@ -2955,7 +2955,7 @@ function FixedBuyinDialog({
                 onSkip()
               }
             }}
-            autoFocus={isDesktop}
+            autoFocus={false}
             className="h-12 md:h-10 text-base md:text-sm"
             />
           </div>

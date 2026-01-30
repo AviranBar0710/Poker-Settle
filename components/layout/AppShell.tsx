@@ -456,7 +456,7 @@ export function AppShell({ children }: AppShellProps) {
                     onChange={(e) => setNewClubName(e.target.value)}
                     disabled={isCreatingClub}
                     className="h-12 md:h-10 text-base md:text-sm"
-                    autoFocus={isDesktop}
+                    autoFocus={false}
                   />
                 </div>
               </div>

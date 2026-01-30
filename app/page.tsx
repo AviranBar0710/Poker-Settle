@@ -282,7 +282,7 @@ export default function HomePage() {
                       }}
                       placeholder="e.g., Friday Night Game"
                       className="h-12 md:h-10 text-base md:text-sm"
-                      autoFocus={isDesktop}
+                      autoFocus={false}
                     />
                   </div>
                   <div className="space-y-2">

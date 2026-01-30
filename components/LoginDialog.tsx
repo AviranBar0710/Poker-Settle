@@ -207,7 +207,7 @@ export function LoginDialog({ open, onOpenChange, onClose }: LoginDialogProps) {
                   disabled={verifying}
                   autoComplete="one-time-code"
                   className="h-12 md:h-10 text-base md:text-sm font-mono tracking-[0.3em] text-center"
-                  autoFocus={isDesktop}
+                  autoFocus={false}
                 />
               </div>
               {errorMessage && (
@@ -309,7 +309,7 @@ export function LoginDialog({ open, onOpenChange, onClose }: LoginDialogProps) {
                   disabled={sending}
                   autoComplete="email"
                   className="h-12 md:h-10 text-base md:text-sm"
-                  autoFocus={isDesktop}
+                  autoFocus={false}
                 />
               </div>
               {errorMessage && (

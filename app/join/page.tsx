@@ -103,7 +103,7 @@ export default function JoinPage() {
                 value={code}
                 onChange={handleChange}
                 autoComplete="off"
-                autoFocus={isDesktop}
+                autoFocus={false}
                 className="font-mono text-lg uppercase tracking-wider"
                 maxLength={16}
                 disabled={isSubmitting}
