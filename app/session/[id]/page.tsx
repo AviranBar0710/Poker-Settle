@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
-// DEBUG: Generate UUID v4 for player ID
+// Generate UUID v4 for transaction IDs
 function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
     const r = Math.random() * 16 | 0
@@ -12,6 +12,7 @@ function generateUUID(): string {
     return v.toString(16)
   })
 }
+
 import { Session } from "@/types/session"
 import { Player } from "@/types/player"
 import { Transaction } from "@/types/transaction"
@@ -19,6 +20,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useUIState } from "@/contexts/UIStateContext"
 import { useClub } from "@/contexts/ClubContext"
 import { useIsDesktop } from "@/hooks/useIsDesktop"
+import { useSessionPlayers } from "@/hooks/useSessionPlayers"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -77,24 +79,82 @@ export default function SessionPage() {
   const isDesktop = useIsDesktop()
 
   const [session, setSession] = useState<Session | null>(null)
-  const [players, setPlayers] = useState<Player[]>([])
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [playerName, setPlayerName] = useState("")
-  const [isAddingPlayer, setIsAddingPlayer] = useState(false)
   const [transactionUpdateCounter, setTransactionUpdateCounter] = useState(0)
   const [copiedSummary, setCopiedSummary] = useState(false)
   const [copiedLink, setCopiedLink] = useState(false)
-  const [editingPlayerId, setEditingPlayerId] = useState<string | "new" | null>(null)
   const [chipEntryMode, setChipEntryMode] = useState(false) // UI-only state for chip entry phase
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [fixedBuyinAmount, setFixedBuyinAmount] = useState<number | null>(null)
   const [showFixedBuyinDialog, setShowFixedBuyinDialog] = useState(false)
-  const [pendingPlayerName, setPendingPlayerName] = useState("") // Store player name while waiting for fixed buy-in decision
-  const [showLinkIdentityDialog, setShowLinkIdentityDialog] = useState(false)
-  const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const hasLoadedOnce = useRef(false)
+
+  // DEBUG: Reload transactions from Supabase (defined before hook for dependency)
+  const reloadTransactions = async () => {
+    console.log("🔵 [DEBUG] Reloading transactions from Supabase for session:", sessionId)
+    
+    try {
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("session_id", sessionId)
+        .order("created_at", { ascending: true })
+
+      if (transactionsError) {
+        console.error("🔴 [DEBUG] Reload transactions ERROR:", transactionsError)
+        return
+      }
+
+      if (transactionsData) {
+        const transactions: Transaction[] = transactionsData.map((t) => ({
+          id: t.id,
+          sessionId: t.session_id,
+          playerId: t.player_id,
+          type: t.type as "buyin" | "cashout",
+          amount: parseFloat(t.amount.toString()),
+          createdAt: t.created_at,
+        }))
+        setTransactions(transactions)
+        setTransactionUpdateCounter((prev) => prev + 1)
+      }
+    } catch (err) {
+      console.error("🔴 [DEBUG] Unexpected error reloading transactions:", err)
+    }
+  }
+
+  // Player state and handlers (extracted to hook)
+  const {
+    players,
+    setPlayers,
+    playerName,
+    setPlayerName,
+    isAddingPlayer,
+    pendingPlayerId,
+    setPendingPlayerId,
+    showLinkIdentityDialog,
+    setShowLinkIdentityDialog,
+    editingPlayerId,
+    setEditingPlayerId,
+    reloadPlayers,
+    handleAddPlayer,
+    addPlayerWithBuyin,
+    handleLinkIdentity,
+    confirmLinkIdentity,
+    handleFixedBuyinConfirm,
+    handleFixedBuyinSkip,
+    userAlreadyLinkedToAnyPlayer,
+  } = useSessionPlayers({
+    sessionId,
+    session,
+    user,
+    fixedBuyinAmount,
+    setFixedBuyinAmount,
+    setShowFixedBuyinDialog,
+    setError,
+    reloadTransactions,
+  })
 
   // Reset load tracking when sessionId changes
   useEffect(() => {
@@ -343,68 +403,6 @@ export default function SessionPage() {
     }
   }
 
-  const reloadPlayers = async () => {
-    console.log("🔵 [DEBUG] Reloading players from Supabase for session:", sessionId)
-    
-    try {
-      const { data: playersData, error: playersError } = await supabase
-        .from("players")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true })
-
-      if (playersError) {
-        console.error("🔴 [DEBUG] Reload players ERROR:", playersError)
-        return
-      }
-
-      if (playersData) {
-        const players: Player[] = playersData.map((p) => ({
-          id: p.id,
-          sessionId: p.session_id,
-          name: p.name,
-          createdAt: p.created_at,
-          profileId: p.profile_id || null,
-        }))
-        setPlayers(players)
-      }
-    } catch (err) {
-      console.error("🔴 [DEBUG] Unexpected error reloading players:", err)
-    }
-  }
-
-  // DEBUG: Reload transactions from Supabase
-  const reloadTransactions = async () => {
-    console.log("🔵 [DEBUG] Reloading transactions from Supabase for session:", sessionId)
-    
-    try {
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from("transactions")
-        .select("*")
-        .eq("session_id", sessionId)
-        .order("created_at", { ascending: true })
-
-      if (transactionsError) {
-        console.error("🔴 [DEBUG] Reload transactions ERROR:", transactionsError)
-        return
-      }
-
-      if (transactionsData) {
-        const transactions: Transaction[] = transactionsData.map((t) => ({
-          id: t.id,
-          sessionId: t.session_id,
-          playerId: t.player_id,
-          type: t.type as "buyin" | "cashout",
-          amount: parseFloat(t.amount.toString()),
-          createdAt: t.created_at,
-        }))
-        setTransactions(transactions)
-        setTransactionUpdateCounter((prev) => prev + 1)
-      }
-    } catch (err) {
-      console.error("🔴 [DEBUG] Unexpected error reloading transactions:", err)
-    }
-  }
 
   // Helper functions to get buyins/cashouts by player from transactions state
   const getBuyinsByPlayer = (sessionId: string, playerId: string): Transaction[] => {
@@ -454,259 +452,6 @@ export default function SessionPage() {
     } catch (err) {
       console.error("Unexpected error finalizing session:", err)
       setError("Failed to finalize session. Please try again.")
-    }
-  }
-
-  // Handle "This is me" identity linking - shows confirmation dialog first
-  const handleLinkIdentity = (playerId: string) => {
-    if (!user || !user.id) {
-      setError("Please log in to link your identity")
-      return
-    }
-
-    // Check if session is finalized
-    if (session?.finalizedAt) {
-      setError("Cannot link identity to a finalized session")
-      return
-    }
-
-    // Check if player is already linked
-    const player = players.find((p) => p.id === playerId)
-    if (player?.profileId) {
-      setError("This player is already linked to another account")
-      return
-    }
-
-    // Check if user is already linked to another player in this session
-    const userAlreadyLinked = players.some(
-      (p) => p.id !== playerId && p.profileId === user.id
-    )
-    if (userAlreadyLinked) {
-      const linkedPlayer = players.find((p) => p.profileId === user.id)
-      setError(
-        `You are already linked to "${linkedPlayer?.name}" in this session. ` +
-        `You can only link to one player per session.`
-      )
-      return
-    }
-
-    // Show confirmation dialog instead of immediate action
-    setPendingPlayerId(playerId)
-    setShowLinkIdentityDialog(true)
-  }
-
-  // Actually perform the identity link after confirmation
-  const confirmLinkIdentity = async () => {
-    if (!pendingPlayerId || !user?.id) return
-
-    setError(null)
-
-    // Double-check before updating (in case state changed)
-    const userAlreadyLinked = players.some(
-      (p) => p.id !== pendingPlayerId && p.profileId === user.id
-    )
-    if (userAlreadyLinked) {
-      const linkedPlayer = players.find((p) => p.profileId === user.id)
-      setError(
-        `You are already linked to "${linkedPlayer?.name}" in this session. ` +
-        `You can only link to one player per session.`
-      )
-      setShowLinkIdentityDialog(false)
-      setPendingPlayerId(null)
-      await reloadPlayers() // Refresh to show current state
-      return
-    }
-
-    try {
-      const { error: linkError } = await supabase
-        .from("players")
-        .update({ profile_id: user.id })
-        .eq("id", pendingPlayerId)
-        .eq("session_id", sessionId)
-        .is("profile_id", null) // Only update if profile_id is null
-
-      if (linkError) {
-        console.error("Error linking identity:", linkError)
-        setError(`Failed to link identity: ${linkError.message}`)
-        return
-      }
-
-      // Reload players to get updated profile_id
-      await reloadPlayers()
-      setError(null)
-      setShowLinkIdentityDialog(false)
-      setPendingPlayerId(null)
-    } catch (err) {
-      console.error("Unexpected error linking identity:", err)
-      setError("Failed to link identity. Please try again.")
-    }
-  }
-
-  const handleAddPlayer = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    
-    // DEBUG: Confirm handler execution
-    console.log("🔵 [DEBUG] Add Player handler executed")
-    
-    if (!playerName.trim()) {
-      console.log("🔴 [DEBUG] Validation failed: empty player name")
-      return
-    }
-
-    // If this is the first player and fixed buy-in hasn't been set, show dialog
-    if (players.length === 0 && fixedBuyinAmount === null) {
-      setPendingPlayerName(playerName.trim())
-      setShowFixedBuyinDialog(true)
-      return // Wait for user to set fixed buy-in or skip
-    }
-
-    // For subsequent players, explicitly pass fixedBuyinAmount if it exists
-    // This ensures the fixed buy-in is applied even if state hasn't updated yet
-    await addPlayerWithBuyin(playerName.trim(), fixedBuyinAmount ?? undefined)
-  }
-
-  // Separate function to add player (used after fixed buy-in is set/skipped)
-  const addPlayerWithBuyin = async (name: string, buyinAmount?: number | null) => {
-    setIsAddingPlayer(true)
-
-    // DEBUG: Generate UUID v4 for player ID
-    const playerId = generateUUID()
-
-    // Use the passed buyinAmount, or fall back to fixedBuyinAmount state
-    // If buyinAmount is explicitly null, use null; if undefined, use fixedBuyinAmount
-    const amountToUse = buyinAmount !== undefined 
-      ? buyinAmount 
-      : (fixedBuyinAmount !== null ? fixedBuyinAmount : null)
-
-    // DEBUG: Log values before insert
-    console.log("🔵 [DEBUG] Adding player with buy-in:", {
-      name,
-      buyinAmount,
-      fixedBuyinAmount,
-      amountToUse,
-      buyinAmountUndefined: buyinAmount === undefined,
-      buyinAmountNull: buyinAmount === null
-    })
-    console.log("🔵 [DEBUG] Player values prepared:", {
-      id: playerId,
-      session_id: sessionId,
-      name: name,
-      buyinAmount: amountToUse,
-      isUUID: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(playerId)
-    })
-
-    try {
-      // DEBUG: Supabase insert with full logging
-      console.log("🔵 [DEBUG] Attempting Supabase player insert...")
-      
-      // Get club_id from session (required for multi-tenant)
-      const sessionClubId = session?.clubId
-      if (!sessionClubId) {
-        console.error("🔴 [DEBUG] Session has no clubId, cannot add player")
-        setError("Session error: missing club information")
-        setIsAddingPlayer(false)
-        return
-      }
-      
-      const { data, error } = await supabase
-        .from("players")
-        .insert({
-          id: playerId,
-          session_id: sessionId,
-          club_id: sessionClubId,
-          name: name
-        })
-        .select()
-
-      // DEBUG: Log both data and error
-      console.log("🔵 [DEBUG] Supabase player insert response:", {
-        data: data,
-        error: error,
-        hasData: !!data,
-        hasError: !!error
-      })
-
-      if (error) {
-        console.error("🔴 [DEBUG] Supabase player insert ERROR:", error)
-        console.error("🔴 [DEBUG] Error details:", {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        })
-        setIsAddingPlayer(false)
-        return
-      }
-
-      if (data && data.length > 0) {
-        console.log("✅ [DEBUG] Supabase player insert SUCCESS:", data[0])
-      } else {
-        console.warn("⚠️ [DEBUG] Supabase player insert returned no data")
-      }
-
-      // If buy-in amount is provided, automatically create buy-in transaction
-      if (amountToUse !== null && amountToUse !== undefined && amountToUse > 0) {
-        const transactionId = generateUUID()
-        // Get club_id from session (required for multi-tenant)
-        const sessionClubId = session?.clubId
-        if (!sessionClubId) {
-          console.error("🔴 [DEBUG] Session has no clubId, cannot add transaction")
-          return
-        }
-
-        const { data: transactionData, error: transactionError } = await supabase
-          .from("transactions")
-          .insert({
-            id: transactionId,
-            session_id: sessionId,
-            club_id: sessionClubId,
-            player_id: playerId,
-            type: "buyin",
-            amount: amountToUse
-          })
-          .select()
-
-        if (transactionError) {
-          console.error("🔴 [DEBUG] Error adding fixed buy-in:", transactionError)
-          // Player was created, but buy-in failed - user can add manually
-        } else {
-          console.log("✅ [DEBUG] Fixed buy-in added successfully:", amountToUse, transactionData)
-        }
-      }
-
-      // DEBUG: Confirm completion
-      console.log("🔵 [DEBUG] Supabase Add Player attempt finished")
-
-      setPlayerName("")
-      // Reload transactions first to ensure they're available, then reload players
-      await reloadTransactions()
-      await reloadPlayers()
-    } catch (err) {
-      console.error("🔴 [DEBUG] Unexpected error during Supabase player insert:", err)
-    } finally {
-      setIsAddingPlayer(false)
-    }
-  }
-
-  // Handle fixed buy-in dialog confirmation
-  const handleFixedBuyinConfirm = (amount: number) => {
-    setFixedBuyinAmount(amount)
-    setShowFixedBuyinDialog(false)
-    // Now add the pending player with the buy-in amount passed directly
-    if (pendingPlayerName) {
-      addPlayerWithBuyin(pendingPlayerName, amount) // Pass amount directly to avoid state timing issue
-      setPendingPlayerName("")
-    }
-  }
-
-  // Handle fixed buy-in dialog skip
-  const handleFixedBuyinSkip = () => {
-    setFixedBuyinAmount(null) // Explicitly set to null to indicate "no fixed buy-in"
-    setShowFixedBuyinDialog(false)
-    // Now add the pending player without buy-in
-    if (pendingPlayerName) {
-      addPlayerWithBuyin(pendingPlayerName, null) // Pass null directly to avoid state timing issue
-      setPendingPlayerName("")
     }
   }
 
@@ -823,12 +568,6 @@ export default function SessionPage() {
       console.error("Failed to copy shareable link:", error)
     }
   }
-
-  // Calculate if user is already linked to any player in this session
-  const userAlreadyLinkedToAnyPlayer = useMemo(() => {
-    if (!user?.id) return false
-    return players.some((p) => p.profileId === user.id)
-  }, [players, user?.id])
 
   // Calculate player results
   // DEBUG: Calculate player results from Supabase transactions (memoized)
