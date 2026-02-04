@@ -34,3 +34,26 @@ npm run dev
 - View session details by ID
 - All data stored in browser localStorage
 
+## Release and deploy
+
+### Push to Git
+
+1. Create a new repository on GitHub (or GitLab/Bitbucket). Do not initialize with a README.
+2. Add the remote and push:
+   ```bash
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
+   git push -u origin master
+   ```
+   (Use your repo URL and branch name if different.)
+
+### Deploy to Vercel
+
+1. Sign in at [vercel.com](https://vercel.com) and **Add New Project** → import your repo.
+2. In **Settings → Environment Variables**, add:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+3. Deploy. Then in **Supabase Dashboard → Authentication → URL Configuration**:
+   - Set **Site URL** to your Vercel URL (e.g. `https://your-project.vercel.app`).
+   - Add `https://your-project.vercel.app/auth/callback` to **Redirect URLs**.
+4. If you use Google sign-in, add the production origin and callback in Google Cloud Console (see [docs/GOOGLE_AUTH_SETUP.md](docs/GOOGLE_AUTH_SETUP.md)).
+
