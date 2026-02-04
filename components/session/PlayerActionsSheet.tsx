@@ -49,6 +49,8 @@ interface PlayerActionsSheetProps {
   currency?: string
   /** Show "Add Cash-out" only after user has started chip entry (or has cash-outs) */
   allowCashOut?: boolean
+  /** If false, show only "View Transactions" (read-only for members) */
+  canEdit?: boolean
 }
 
 /**
@@ -119,6 +121,7 @@ export function PlayerActionsSheet({
   onAction,
   currency = "$",
   allowCashOut = false,
+  canEdit = true,
 }: PlayerActionsSheetProps) {
   
   // Handler factory for actions
@@ -149,49 +152,57 @@ export function PlayerActionsSheet({
           </BottomSheetDescription>
         </BottomSheetHeader>
 
-        {/* Action List - One action per row */}
+        {/* Action List - One action per row; members see only View Transactions */}
         <BottomSheetBody>
           <div className="flex flex-col">
-            {/* 1. Edit Name */}
-            <ActionRow
-              icon={<Pencil className="h-5 w-5" />}
-              label="Edit Name"
-              onClick={() => handleAction("edit-name")}
-            />
+            {canEdit && (
+              <>
+                {/* 1. Edit Name */}
+                <ActionRow
+                  icon={<Pencil className="h-5 w-5" />}
+                  label="Edit Name"
+                  onClick={() => handleAction("edit-name")}
+                />
 
-            {/* 2. Add Buy-in */}
-            <ActionRow
-              icon={<Plus className="h-5 w-5" />}
-              label="Add Buy-in"
-              onClick={() => handleAction("add-buyin")}
-            />
+                {/* 2. Add Buy-in */}
+                <ActionRow
+                  icon={<Plus className="h-5 w-5" />}
+                  label="Add Buy-in"
+                  onClick={() => handleAction("add-buyin")}
+                />
 
-            {/* 3. Add Cash-out — only after Start chip entry (or ready_to_finalize) */}
-            {allowCashOut && (
-              <ActionRow
-                icon={<Minus className="h-5 w-5" />}
-                label="Add Cash-out"
-                onClick={() => handleAction("add-cashout")}
-              />
+                {/* 3. Add Cash-out — only after Start chip entry (or ready_to_finalize) */}
+                {allowCashOut && (
+                  <ActionRow
+                    icon={<Minus className="h-5 w-5" />}
+                    label="Add Cash-out"
+                    onClick={() => handleAction("add-cashout")}
+                  />
+                )}
+              </>
             )}
 
-            {/* 4. View Transactions */}
+            {/* 4. View Transactions — always visible (read-only for members) */}
             <ActionRow
               icon={<List className="h-5 w-5" />}
               label="View Transactions"
               onClick={() => handleAction("view-transactions")}
             />
 
-            {/* Separator before destructive action */}
-            <div className="my-2 mx-4 border-t border-border" />
+            {canEdit && (
+              <>
+                {/* Separator before destructive action */}
+                <div className="my-2 mx-4 border-t border-border" />
 
-            {/* 5. Remove Player - Destructive and visually weaker */}
-            <ActionRow
-              icon={<Trash2 className="h-5 w-5" />}
-              label="Remove Player"
-              onClick={() => handleAction("remove-player")}
-              variant="destructive"
-            />
+                {/* 5. Remove Player - Destructive and visually weaker */}
+                <ActionRow
+                  icon={<Trash2 className="h-5 w-5" />}
+                  label="Remove Player"
+                  onClick={() => handleAction("remove-player")}
+                  variant="destructive"
+                />
+              </>
+            )}
           </div>
         </BottomSheetBody>
       </BottomSheetContent>

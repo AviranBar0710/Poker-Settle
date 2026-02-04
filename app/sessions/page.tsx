@@ -7,17 +7,18 @@ import { AppShell } from "@/components/layout/AppShell"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { getCurrencySymbol } from "@/lib/currency"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
-import { cn } from "@/lib/utils"
 import Link from "next/link"
-import { Calendar, Clock, DollarSign, Eye } from "lucide-react"
+import { Calendar, Eye } from "lucide-react"
 import { useClub } from "@/contexts/ClubContext"
 
 type SessionWithPL = Session & {
   totalBuyins: number
   totalCashouts: number
   totalPL: number
+  playerCount: number
 }
 
 export default function SessionsHistoryPage() {
@@ -55,23 +56,24 @@ export default function SessionsHistoryPage() {
             finalizedAt: s.finalized_at || undefined,
           }))
 
-          // Load transactions for all sessions to calculate P/L
+          // Load transactions and players for all sessions
           if (sessionsList.length > 0) {
             const sessionIds = sessionsList.map((s) => s.id)
-            const { data: transactionsData, error: transactionsError } = await supabase
-              .from("transactions")
-              .select("*")
-              .in("session_id", sessionIds)
+            const [transactionsRes, playersRes] = await Promise.all([
+              supabase.from("transactions").select("*").in("session_id", sessionIds),
+              supabase.from("players").select("id, session_id").in("session_id", sessionIds),
+            ])
 
-            if (transactionsError) {
-              console.error("Error loading transactions:", transactionsError)
-            }
+            const transactionsData = transactionsRes.data || []
+            const playersData = playersRes.data || []
+            if (transactionsRes.error) console.error("Error loading transactions:", transactionsRes.error)
+            if (playersRes.error) console.error("Error loading players:", playersRes.error)
 
-            // Calculate P/L for each session
             const sessionsWithPL: SessionWithPL[] = sessionsList.map((session) => {
-              const sessionTransactions = transactionsData?.filter(
+              const sessionTransactions = transactionsData.filter(
                 (t) => t.session_id === session.id
-              ) || []
+              )
+              const playerCount = playersData.filter((p) => p.session_id === session.id).length
 
               const totalBuyins = sessionTransactions
                 .filter((t) => t.type === "buyin")
@@ -88,6 +90,7 @@ export default function SessionsHistoryPage() {
                 totalBuyins,
                 totalCashouts,
                 totalPL,
+                playerCount,
               }
             })
 
@@ -109,7 +112,7 @@ export default function SessionsHistoryPage() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           {/* Page Header */}
           <div className="space-y-2">
@@ -145,7 +148,7 @@ export default function SessionsHistoryPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-4 min-w-0 overflow-hidden">
               {sessions.map((session) => (
                 <Card key={session.id} className="hover:shadow-md transition-shadow">
                   <CardContent className="p-4 sm:p-6">
@@ -158,61 +161,35 @@ export default function SessionsHistoryPage() {
                             Finalized
                           </Badge>
                         </div>
-                        
-                        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 sm:gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar className="h-4 w-4" />
-                            <span>Created {new Date(session.createdAt).toLocaleDateString()}</span>
-                          </div>
-                          {session.finalizedAt && (
-                            <div className="flex items-center gap-1.5">
-                              <Clock className="h-4 w-4" />
-                              <span>Finalized {new Date(session.finalizedAt).toLocaleDateString()}</span>
-                            </div>
-                          )}
-                          <div className="flex items-center gap-1.5">
-                            <DollarSign className="h-4 w-4" />
-                            <span className="font-medium">{session.currency}</span>
-                          </div>
-                        </div>
 
-                        {/* Session Summary Stats */}
-                        <div className="grid grid-cols-3 gap-4 sm:flex sm:items-center sm:gap-6 pt-2">
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                              Buy-ins
-                            </p>
-                            <p className="text-sm font-mono font-semibold">
-                              {session.currency} {session.totalBuyins.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                              Cash-outs
-                            </p>
-                            <p className="text-sm font-mono font-semibold">
-                              {session.currency} {session.totalCashouts.toFixed(2)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">
-                              Profit/Loss
-                            </p>
-                            <p
-                              className={cn(
-                                "text-base font-mono font-bold",
-                                session.totalPL > 0.01
-                                  ? "text-green-600 dark:text-green-500"
-                                  : session.totalPL < -0.01
-                                  ? "text-red-600 dark:text-red-500"
-                                  : "text-muted-foreground"
-                              )}
-                            >
-                              {session.totalPL > 0 ? "+" : ""}
-                              {session.currency} {session.totalPL.toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
+                        {/* Primary info: Created at, Currency, Total buy-in, Players */}
+                        {(() => {
+                          const sym = getCurrencySymbol(session.currency)
+                          return (
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <Calendar className="h-4 w-4 shrink-0" />
+                                <span>{new Date(session.createdAt).toLocaleDateString()}</span>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Currency</p>
+                                <p className="text-sm font-mono font-semibold">{sym}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total buy-in</p>
+                                <p className="text-sm font-mono font-semibold">
+                                  {sym}{session.totalBuyins.toFixed(0)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Players</p>
+                                <p className="text-sm font-mono font-semibold">
+                                  {session.playerCount ?? 0} {(session.playerCount ?? 0) === 1 ? "Player" : "Players"}
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        })()}
                       </div>
 
                       {/* Right: Action */}

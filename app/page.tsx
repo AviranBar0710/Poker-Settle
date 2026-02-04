@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { useIsDesktop } from "@/hooks/useIsDesktop"
+import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
 
@@ -32,19 +33,21 @@ export default function HomePage() {
   const { activeClubId } = useClub()
 
   const [sessionName, setSessionName] = useState("")
-  const [currency, setCurrency] = useState<"USD" | "ILS" | "EUR">("USD")
+  const [currency, setCurrency] = useState<"USD" | "ILS" | "EUR">("ILS")
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [isLoadingSessions, setIsLoadingSessions] = useState(true)
   const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [players, setPlayers] = useState<{ id: string; session_id: string }[]>([])
 
   // Load sessions and transactions for dashboard display
   useEffect(() => {
     if (!activeClubId) {
       setSessions([])
       setTransactions([])
+      setPlayers([])
       setIsLoadingSessions(false)
       return
     }
@@ -59,7 +62,8 @@ export default function HomePage() {
           .limit(10)
 
         if (error) {
-          console.error("Error loading sessions:", error)
+          const err = error as { message?: string; details?: string; hint?: string; code?: string }
+          console.error("Error loading sessions:", err?.message ?? err?.details ?? err?.hint ?? err?.code ?? error)
           setSessions([])
         } else if (data) {
           const sessionsList: Session[] = data.map((s) => ({
@@ -71,39 +75,42 @@ export default function HomePage() {
           }))
           setSessions(sessionsList)
 
-          // Load transactions for finalized sessions to calculate pot values
-          const finalizedSessionIds = sessionsList
-            .filter((s) => s.finalizedAt)
-            .map((s) => s.id)
-
-          if (finalizedSessionIds.length > 0) {
-            const { data: transactionsData, error: transactionsError } = await supabase
-              .from("transactions")
-              .select("*")
-              .in("session_id", finalizedSessionIds)
-
-            if (transactionsError) {
-              console.error("Error loading transactions:", transactionsError)
+          // Load transactions and players for all sessions (for Recent Sessions cards)
+          const sessionIds = sessionsList.map((s) => s.id)
+          if (sessionIds.length > 0) {
+            const [transactionsRes, playersRes] = await Promise.all([
+              supabase.from("transactions").select("*").in("session_id", sessionIds),
+              supabase.from("players").select("id, session_id").in("session_id", sessionIds),
+            ])
+            if (transactionsRes.data) {
+              setTransactions(
+                transactionsRes.data.map((t) => ({
+                  id: t.id,
+                  sessionId: t.session_id,
+                  playerId: t.player_id,
+                  type: t.type as "buyin" | "cashout",
+                  amount: parseFloat(t.amount.toString()),
+                  createdAt: t.created_at,
+                }))
+              )
+            } else {
               setTransactions([])
-            } else if (transactionsData) {
-              const transactionsList: Transaction[] = transactionsData.map((t) => ({
-                id: t.id,
-                sessionId: t.session_id,
-                playerId: t.player_id,
-                type: t.type as "buyin" | "cashout",
-                amount: parseFloat(t.amount.toString()),
-                createdAt: t.created_at,
-              }))
-              setTransactions(transactionsList)
+            }
+            if (playersRes.data) {
+              setPlayers(playersRes.data.map((p) => ({ id: p.id, session_id: p.session_id })))
+            } else {
+              setPlayers([])
             }
           } else {
             setTransactions([])
+            setPlayers([])
           }
         }
       } catch (err) {
         console.error("Unexpected error loading sessions:", err)
         setSessions([])
         setTransactions([])
+        setPlayers([])
       } finally {
         setIsLoadingSessions(false)
       }
@@ -171,7 +178,7 @@ export default function HomePage() {
         // Close dialog and reset form
         setShowCreateDialog(false)
         setSessionName("")
-        setCurrency("USD")
+        setCurrency("ILS")
         setCreateError(null)
         // Navigate to session page
         router.push(`/session/${sessionId}`)
@@ -206,13 +213,13 @@ export default function HomePage() {
 
   // Get currency from first finalized session (or default to first session)
   const displayCurrency = finalizedSessions[0]?.currency || sessions[0]?.currency || "USD"
-  const currencySymbol = displayCurrency === "ILS" ? "₪" : displayCurrency === "EUR" ? "€" : "$"
+  const currencySymbol = getCurrencySymbol(displayCurrency as "USD" | "ILS" | "EUR")
 
   const recentSessions = sessions.slice(0, 6)
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -313,7 +320,7 @@ export default function HomePage() {
                       onClick={() => {
                         setShowCreateDialog(false)
                         setSessionName("")
-                        setCurrency("USD")
+                        setCurrency("ILS")
                       }}
                       disabled={isSubmitting}
                       className="h-12 md:h-10 order-2 md:order-1 text-base md:text-sm"
@@ -445,7 +452,7 @@ export default function HomePage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
                 {recentSessions.map((session) => (
                   <Card
                     key={session.id}
@@ -470,11 +477,23 @@ export default function HomePage() {
                       </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                          {session.currency}
-                        </span>
-                        <Link href={`/session/${session.id}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="text-sm text-muted-foreground">
+                            {players.filter((p) => p.session_id === session.id).length} Player
+                            {players.filter((p) => p.session_id === session.id).length !== 1 ? "s" : ""}
+                          </span>
+                          <span className="text-sm font-medium font-mono">
+                            {(() => {
+                              const sym = getCurrencySymbol(session.currency)
+                              const total = transactions
+                                .filter((t) => t.sessionId === session.id && t.type === "buyin")
+                                .reduce((s, t) => s + t.amount, 0)
+                              return `${total.toFixed(0)}${sym}`
+                            })()}
+                          </span>
+                        </div>
+                        <Link href={`/session/${session.id}`} className="shrink-0">
                           <Button variant="outline" size="sm">
                             {session.finalizedAt ? "View" : "Continue"}
                           </Button>

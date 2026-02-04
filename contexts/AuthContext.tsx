@@ -13,6 +13,8 @@ interface AuthContextType {
   requestOtp: (email: string) => Promise<{ error: Error | null }>
   /** Verify OTP and establish session. */
   verifyOtp: (email: string, token: string) => Promise<{ error: Error | null }>
+  /** Sign in with Google OAuth. Redirects to Google, then back to /auth/callback. */
+  signInWithGoogle: () => Promise<{ error: Error | null }>
   signOut: () => Promise<void>
 }
 
@@ -26,6 +28,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let mounted = true
     let timeoutId: NodeJS.Timeout
+
+    // Catch unhandled auth refresh errors (e.g. "Invalid Refresh Token: Refresh Token Not Found")
+    // These can be thrown by Supabase's internal auto-refresh before our handlers run
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const err = event?.reason
+      const msg = String(err?.message || err?.error_description || err || "")
+      const isRefreshTokenError =
+        msg.includes("Invalid Refresh Token") ||
+        msg.includes("Refresh Token Not Found") ||
+        msg.includes("refresh_token_not_found") ||
+        msg.includes("token_not_found")
+      if (isRefreshTokenError) {
+        event.preventDefault()
+        console.warn("Caught invalid refresh token, clearing session:", msg)
+        supabase.auth.signOut({ scope: "local" }).catch(() => {})
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+      }
+    }
+    window.addEventListener("unhandledrejection", handleUnhandledRejection)
 
     // Set a maximum timeout to prevent infinite loading
     timeoutId = setTimeout(() => {
@@ -177,6 +200,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       mounted = false
       clearTimeout(timeoutId)
+      window.removeEventListener("unhandledrejection", handleUnhandledRejection)
       if (subscription) {
         try {
           subscription.unsubscribe()
@@ -215,12 +239,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const signInWithGoogle = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+        },
+      })
+      return { error }
+    } catch (err) {
+      return { error: err as Error }
+    }
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
   }
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, signIn, requestOtp, verifyOtp, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signIn, requestOtp, verifyOtp, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   )

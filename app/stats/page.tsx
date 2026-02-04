@@ -21,6 +21,7 @@ import { Transaction } from "@/types/transaction"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Crown, Medal, BarChart3, LogIn } from "lucide-react"
+import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
 
@@ -263,7 +264,7 @@ export default function StatsPage() {
   )
 
   // Get currency symbol
-  const currencySymbol = sessions[0]?.currency === "ILS" ? "₪" : sessions[0]?.currency === "EUR" ? "€" : "$"
+  const currencySymbol = sessions[0]?.currency ? getCurrencySymbol(sessions[0].currency) : "$"
 
   // Rank icon component
   const RankIcon = ({ rank }: { rank: number }) => {
@@ -348,7 +349,7 @@ export default function StatsPage() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6">
+      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

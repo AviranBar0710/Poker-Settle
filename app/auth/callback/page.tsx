@@ -307,7 +307,12 @@ function AuthCallbackInner() {
     if (redirected.current) return
     redirected.current = true
     devLog("redirect", { to: "/" })
-    router.replace("/")
+    // Hard redirect to Home so new users always land on Dashboard (or /join via OnboardingGuard)
+    if (typeof window !== "undefined") {
+      window.location.replace("/")
+    } else {
+      router.replace("/")
+    }
   }, [router])
 
   const sendMagicLink = useCallback(async (email: string) => {

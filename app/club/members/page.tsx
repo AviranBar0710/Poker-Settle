@@ -54,24 +54,44 @@ export default function ClubMembersPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data, error: fetchError } = await supabase
-        .from("club_members")
-        .select("user_id, role, created_at")
-        .eq("club_id", activeClubId)
-        .order("created_at", { ascending: true })
+      const { data, error: fetchError } = await supabase.rpc("get_club_members_with_profiles", {
+        p_club_id: activeClubId,
+      })
 
       if (fetchError) {
-        setError(fetchError.message || "Failed to load members")
-        setMembers([])
+        // Fallback to basic fetch if RPC not available (e.g. migration not run)
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from("club_members")
+          .select("user_id, role, created_at")
+          .eq("club_id", activeClubId)
+          .order("created_at", { ascending: true })
+
+        if (fallbackError) {
+          setError(fallbackError.message || "Failed to load members")
+          setMembers([])
+          return
+        }
+
+        const rows: MemberRow[] = (fallbackData || []).map((m: any) => ({
+          userId: m.user_id,
+          role: m.role,
+          createdAt: m.created_at,
+          displayName: m.user_id === user?.id ? (user?.email || "You") : "Member",
+        }))
+        setMembers(rows)
         return
       }
 
-      const rows: MemberRow[] = (data || []).map((m: any) => ({
-        userId: m.user_id,
-        role: m.role,
-        createdAt: m.created_at,
-        displayName: m.user_id === user?.id ? (user?.email || "You") : "Member",
-      }))
+      const rows: MemberRow[] = (data || []).map((m: any) => {
+        const email = m.email || null
+        const displayName = m.display_name || email || (m.user_id === user?.id ? "You" : "Member")
+        return {
+          userId: m.user_id,
+          role: m.role,
+          createdAt: m.created_at,
+          displayName,
+        }
+      })
       setMembers(rows)
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load members")

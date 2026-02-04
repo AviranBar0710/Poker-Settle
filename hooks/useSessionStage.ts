@@ -45,6 +45,10 @@ interface UseSessionStageReturn {
   startChipEntry: () => Promise<boolean>
   /** Is startChipEntry in progress? */
   isStartingChipEntry: boolean
+  /** Action: Go back from chip_entry to buyins (add player phase) — admin/owner only */
+  resetChipEntry: () => Promise<boolean>
+  /** Is resetChipEntry in progress? */
+  isResettingChipEntry: boolean
 }
 
 export function useSessionStage({
@@ -56,6 +60,7 @@ export function useSessionStage({
   reloadSession,
 }: UseSessionStageParams): UseSessionStageReturn {
   const [isStartingChipEntry, setIsStartingChipEntry] = useState(false)
+  const [isResettingChipEntry, setIsResettingChipEntry] = useState(false)
 
   // Derive current stage
   const stage = useMemo(
@@ -130,6 +135,50 @@ export function useSessionStage({
     reloadSession,
   ])
 
+  // Action: Reset chip entry (go back to add player / buyins phase)
+  const resetChipEntry = useCallback(async (): Promise<boolean> => {
+    if (!session) {
+      setError("Session not loaded")
+      return false
+    }
+
+    if (!session.chip_entry_started_at) {
+      // Already in buyins phase
+      return true
+    }
+
+    setIsResettingChipEntry(true)
+    setError(null)
+
+    try {
+      const { error } = await supabase
+        .from("sessions")
+        .update({ chip_entry_started_at: null })
+        .eq("id", sessionId)
+
+      if (error) {
+        console.error("Error resetting chip entry:", {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+        })
+        setError(`Failed to go back: ${error.message || "Unknown error"}`)
+        setIsResettingChipEntry(false)
+        return false
+      }
+
+      reloadSession()
+      setIsResettingChipEntry(false)
+      return true
+    } catch (err) {
+      console.error("Unexpected error resetting chip entry:", err)
+      setError("Failed to go back. Please try again.")
+      setIsResettingChipEntry(false)
+      return false
+    }
+  }, [session, sessionId, setError, reloadSession])
+
   return {
     stage,
     missingBuyinsPlayerIds,
@@ -137,5 +186,7 @@ export function useSessionStage({
     startChipEntryBlockedReason,
     startChipEntry,
     isStartingChipEntry,
+    resetChipEntry,
+    isResettingChipEntry,
   }
 }

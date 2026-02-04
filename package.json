@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "bulk-link-base44": "tsx scripts/bulk-link-base44-profiles.ts",
     "dev": "next dev",
     "ngrok": "ngrok http 3000",
     "ngrok:3001": "ngrok http 3001",
@@ -34,8 +35,11 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.22",
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.3",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
     "typescript": "^5.3.0"
   }
 }

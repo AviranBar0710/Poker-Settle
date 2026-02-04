@@ -114,26 +114,24 @@ export function ClubProvider({ children }: { children: ReactNode }) {
       }
 
       if (clubsError) {
-        const err = clubsError as any
+        const err = clubsError as Record<string, unknown>
         const errMessage =
-          err?.message ??
-          err?.details ??
-          err?.hint ??
-          err?.code ??
+          (err?.message as string) ??
+          (err?.details as string) ??
+          (err?.hint as string) ??
+          (err?.code as string) ??
           (typeof clubsError === "string" ? clubsError : "Failed to load clubs")
-        console.error("Error loading clubs:", {
-          message: err?.message,
-          details: err?.details,
-          hint: err?.hint,
-          code: err?.code,
-          raw: clubsError,
-        })
-        try {
-          console.error("Error (JSON):", JSON.stringify(clubsError, Object.getOwnPropertyNames(clubsError)))
-        } catch {
-          /* ignore */
-        }
-        setError(errMessage)
+        // Log with explicit string so we always see a useful message (objects often show as {} in console)
+        const logMsg = [
+          err?.message,
+          err?.details,
+          err?.hint,
+          err?.code,
+        ]
+          .filter(Boolean)
+          .join(" | ") || String(clubsError)
+        console.error("Error loading clubs:", logMsg)
+        setError(errMessage || "Failed to load clubs")
         setClubs([])
         setLoading(false)
         return
@@ -148,15 +146,17 @@ export function ClubProvider({ children }: { children: ReactNode }) {
         return
       }
 
-      const clubsWithMembership: ClubWithMembership[] = data.map((item: any) => ({
-        id: item.clubs.id,
-        name: item.clubs.name,
-        slug: item.clubs.slug,
-        joinCode: item.clubs.join_code ?? null,
-        createdBy: item.clubs.created_by,
-        createdAt: item.clubs.created_at,
-        role: item.role,
-      }))
+      const clubsWithMembership: ClubWithMembership[] = data
+        .filter((item: any) => item?.clubs != null)
+        .map((item: any) => ({
+          id: item.clubs.id,
+          name: item.clubs.name,
+          slug: item.clubs.slug,
+          joinCode: item.clubs.join_code ?? null,
+          createdBy: item.clubs.created_by,
+          createdAt: item.clubs.created_at,
+          role: item.role,
+        }))
 
       setClubs(clubsWithMembership)
 
@@ -194,8 +194,10 @@ export function ClubProvider({ children }: { children: ReactNode }) {
 
       setLoading(false)
     } catch (err) {
-      console.error("Unexpected error loading clubs:", err)
-      setError(err instanceof Error ? err.message : "Failed to load clubs")
+      const msg = err instanceof Error ? err.message : String(err ?? "Unknown error")
+      console.error("Error loading clubs (unexpected):", msg)
+      setError(msg)
+      setClubs([])
       setLoading(false)
     }
   }, [user])
@@ -356,6 +358,23 @@ export function ClubProvider({ children }: { children: ReactNode }) {
 
         // Reload clubs
         await loadClubs()
+
+        // Set new club as active (so caller doesn't need setActiveClub before clubs state updates)
+        const { error: profileErr } = await supabase
+          .from("profiles")
+          .update({ active_club_id: clubData.id })
+          .eq("id", user.id)
+        if (!profileErr) {
+          setActiveClubState({
+            id: clubData.id,
+            name: clubData.name,
+            slug: clubData.slug,
+            joinCode: clubData.join_code ?? null,
+            role: "owner",
+            createdAt: clubData.created_at,
+          })
+          setActiveClubId(clubData.id)
+        }
 
         return {
           id: clubData.id,

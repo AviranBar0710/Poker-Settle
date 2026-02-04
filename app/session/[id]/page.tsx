@@ -37,8 +37,9 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AppShell } from "@/components/layout/AppShell"
-import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight } from "lucide-react"
+import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight, MoreVertical, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getCurrencySymbol, type CurrencyCode } from "@/lib/currency"
 import { BALANCE_TOLERANCE, COPY_FEEDBACK_DELAY_MS, CLOSE_DELAY_MS } from "@/lib/session/constants"
 import {
   Transfer,
@@ -66,11 +67,15 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
 import { PlayerActionsSheet } from "@/components/session/PlayerActionsSheet"
+import { StageBanner } from "@/components/session/StageBanner"
+import { EmptyState } from "@/components/session/EmptyState"
+import { FinalizationChecklist } from "@/components/session/FinalizationChecklist"
 import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
 import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
 import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
 import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
 import { useSessionStage } from "@/hooks/useSessionStage"
+import { useLongPress } from "@/hooks/useLongPress"
 
 type Step = "setup" | "buyins" | "cashouts" | "results" | "share"
 
@@ -82,7 +87,7 @@ export default function SessionPage() {
   const currentStep = (searchParams.get("step") || "setup") as Step
   const { user } = useAuth()
   const { isSidebarOpen, closeAllOverlays } = useUIState()
-  const { activeClubId, loading: isLoadingClubs } = useClub()
+  const { activeClubId, activeClub, loading: isLoadingClubs } = useClub()
   const isDesktop = useIsDesktop()
 
   const [session, setSession] = useState<Session | null>(null)
@@ -98,6 +103,9 @@ export default function SessionPage() {
   const [addCashoutPlayer, setAddCashoutPlayer] = useState<Player | null>(null)
   const [removePlayerConfirm, setRemovePlayerConfirm] = useState<Player | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isFinalizingSession, setIsFinalizingSession] = useState(false)
+  const [showSettlementDetails, setShowSettlementDetails] = useState(false)
+  const [showFinalizedDialog, setShowFinalizedDialog] = useState(false)
   const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
@@ -374,6 +382,8 @@ export default function SessionPage() {
     startChipEntryBlockedReason,
     startChipEntry,
     isStartingChipEntry,
+    resetChipEntry,
+    isResettingChipEntry,
   } = useSessionStage({
     sessionId,
     session,
@@ -452,6 +462,7 @@ export default function SessionPage() {
     if (!session) return
     
     setError(null)
+    setIsFinalizingSession(true)
     const finalizedAt = new Date().toISOString()
     
     try {
@@ -476,13 +487,15 @@ export default function SessionPage() {
         }
         setSession(updatedSession)
         setError(null)
-        navigateToStep("share")
+        setShowFinalizedDialog(true)
       } else {
         setError("Failed to finalize session: No data returned")
       }
     } catch (err) {
       console.error("Unexpected error finalizing session:", err)
       setError("Failed to finalize session. Please try again.")
+    } finally {
+      setIsFinalizingSession(false)
     }
   }
 
@@ -500,7 +513,38 @@ export default function SessionPage() {
 
   const totalsDontBalance = Math.abs(totalProfitLoss) > BALANCE_TOLERANCE
 
+  // Last 3 unique amounts used in session (for Common Amounts in transaction sheets)
+  const recentBuyinAmounts = useMemo(() => {
+    const buyins = transactions
+      .filter((t) => t.type === "buyin")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const seen = new Set<number>()
+    return buyins
+      .map((t) => t.amount)
+      .filter((a) => {
+        if (seen.has(a)) return false
+        seen.add(a)
+        return true
+      })
+      .slice(0, 3)
+  }, [transactions])
+  const recentCashoutAmounts = useMemo(() => {
+    const cashouts = transactions
+      .filter((t) => t.type === "cashout")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const seen = new Set<number>()
+    return cashouts
+      .map((t) => t.amount)
+      .filter((a) => {
+        if (seen.has(a)) return false
+        seen.add(a)
+        return true
+      })
+      .slice(0, 3)
+  }, [transactions])
+
   const isFinalized = session?.finalizedAt !== undefined
+  const canEdit = activeClub?.role === "owner" || activeClub?.role === "admin"
   const hasCashouts = transactions.some((t) => t.type === "cashout")
 
   // Map stage engine output to existing currentPhase (for backward compat)
@@ -538,21 +582,22 @@ export default function SessionPage() {
     })
     
     lines.push(`🃏 Poker Night Results - ${dateStr} 🃏`)
-    lines.push(`💰 Pot: ${session.currency}${totalBuyins.toFixed(2)} (calculated by the total buy-ins in the game)`)
+    lines.push(`💰 Pot: ${getCurrencySymbol(session.currency)}${totalBuyins.toFixed(2)} (calculated by the total buy-ins in the game)`)
     lines.push("")
     
-    // Final Standings
+    // Final Standings: winners first (by pl DESC), then owes (by pl DESC = smallest loss first)
     lines.push("📊 Final Standings:")
     lines.push("-----------------------------------")
     
-    // Combine winners and losers, sorted by absolute P/L (highest first)
-    const allPlayers = [...winners, ...losers].sort((a, b) => Math.abs(b.pl) - Math.abs(a.pl))
+    const winnersSorted = [...winners].sort((a, b) => b.pl - a.pl)
+    const losersSorted = [...losers].sort((a, b) => b.pl - a.pl)
+    const allPlayers = [...winnersSorted, ...losersSorted]
     
     allPlayers.forEach((result, index) => {
       const isWinner = result.pl > BALANCE_TOLERANCE
       const emoji = isWinner ? "🏆" : "💸"
       const amount = Math.abs(result.pl)
-      lines.push(`${index + 1}. ${result.player.name} ${emoji} ${session.currency}${amount.toFixed(2)}`)
+      lines.push(`${index + 1}. ${result.player.name} ${emoji} ${getCurrencySymbol(session.currency)}${amount.toFixed(2)}`)
     })
     
     lines.push("")
@@ -563,7 +608,7 @@ export default function SessionPage() {
       lines.push("No payments needed.")
     } else {
       settlementTransfers.forEach((transfer) => {
-        lines.push(`${transfer.debtorName} → ${transfer.creditorName}: ${session.currency}${transfer.amount.toFixed(2)}`)
+        lines.push(`${transfer.debtorName} → ${transfer.creditorName}: ${getCurrencySymbol(session.currency)}${transfer.amount.toFixed(2)}`)
       })
     }
     
@@ -654,28 +699,28 @@ export default function SessionPage() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background overflow-x-hidden">
         {/* Session Header - Workspace Context */}
         <div className="sticky top-0 z-10 bg-background border-b">
           <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-5 max-w-6xl">
-            {/* Mobile: Summary Card at top */}
-            <div className="md:hidden mb-4">
+            {/* Mobile: Summary Card at top - min-w-0 + overflow-hidden prevent text overlap */}
+            <div className="md:hidden mb-4 overflow-hidden">
               <Card className="bg-muted/50 border-muted">
                 <CardContent className="p-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="flex flex-col items-center justify-center min-h-[60px]">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Buy-ins</p>
-                      <p className="text-base font-bold font-mono leading-none">{session.currency} {totalBuyins.toFixed(2)}</p>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] overflow-hidden">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">Buy-ins</p>
+                      <p className="text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1">{getCurrencySymbol(session.currency)}{totalBuyins.toFixed(2)}</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center min-h-[60px] border-x border-border/50">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Cash-outs</p>
-                      <p className="text-base font-bold font-mono leading-none">{session.currency} {totalCashouts.toFixed(2)}</p>
+                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] border-x border-border/50 overflow-hidden">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">Cash-outs</p>
+                      <p className="text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1">{getCurrencySymbol(session.currency)}{totalCashouts.toFixed(2)}</p>
                     </div>
-                    <div className="flex flex-col items-center justify-center min-h-[60px]">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">P/L</p>
+                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] overflow-hidden">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">P/L</p>
                       <p
                         className={cn(
-                          "text-base font-bold font-mono leading-none",
+                          "text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1",
                           totalProfitLoss > BALANCE_TOLERANCE
                             ? "text-green-600 dark:text-green-500"
                             : totalProfitLoss < -BALANCE_TOLERANCE
@@ -684,7 +729,7 @@ export default function SessionPage() {
                         )}
                       >
                         {totalProfitLoss > 0 ? "+" : ""}
-                        {session.currency} {totalProfitLoss.toFixed(2)}
+                        {getCurrencySymbol(session.currency)}{totalProfitLoss.toFixed(2)}
                       </p>
                     </div>
                   </div>
@@ -696,21 +741,21 @@ export default function SessionPage() {
               {/* Left: Session Info */}
               <div className="flex-1 min-w-0">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                  <h1 className="text-xl sm:text-2xl font-bold tracking-tight truncate">{session.name}</h1>
+                  <h1 className="text-title sm:text-hero font-bold tracking-tight truncate">{session.name}</h1>
                   <Badge variant={isFinalized ? "default" : "secondary"} className="shrink-0 w-fit">
                     {isFinalized ? "Finalized" : "Active"}
                   </Badge>
                 </div>
-                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                  <span className="font-medium">{session.currency}</span>
-                  <span className="hidden md:inline">•</span>
-                  <span className="hidden md:inline">ID: {sessionId.slice(0, 8)}...</span>
-                  <span>•</span>
-                  <span>Created {new Date(session.createdAt).toLocaleDateString()}</span>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
+                  <span className="font-medium whitespace-nowrap">{getCurrencySymbol(session.currency)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="hidden md:inline whitespace-nowrap">ID: {sessionId.slice(0, 8)}...</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="whitespace-nowrap">Created {new Date(session.createdAt).toLocaleDateString()}</span>
                   {isFinalized && session.finalizedAt && (
                     <>
-                      <span>•</span>
-                      <span>Finalized {new Date(session.finalizedAt).toLocaleDateString()}</span>
+                      <span className="hidden sm:inline">•</span>
+                      <span className="whitespace-nowrap">Finalized {new Date(session.finalizedAt).toLocaleDateString()}</span>
                     </>
                   )}
                 </div>
@@ -718,19 +763,19 @@ export default function SessionPage() {
 
               {/* Right: Quick Stats - Desktop only */}
               <div className="hidden md:flex gap-4 sm:gap-6 shrink-0">
-                <div className="text-right">
+                <div className="text-right min-w-0">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Buy-ins</p>
-                  <p className="text-sm sm:text-base font-bold font-mono">{session.currency} {totalBuyins.toFixed(2)}</p>
+                  <p className="text-sm sm:text-base font-bold font-mono whitespace-nowrap">{getCurrencySymbol(session.currency)}{totalBuyins.toFixed(2)}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-w-0">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cash-outs</p>
-                  <p className="text-sm sm:text-base font-bold font-mono">{session.currency} {totalCashouts.toFixed(2)}</p>
+                  <p className="text-sm sm:text-base font-bold font-mono whitespace-nowrap">{getCurrencySymbol(session.currency)}{totalCashouts.toFixed(2)}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-right min-w-0">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">P/L</p>
                   <p
                     className={cn(
-                      "text-sm sm:text-base font-bold font-mono",
+                      "text-sm sm:text-base font-bold font-mono whitespace-nowrap",
                       totalProfitLoss > BALANCE_TOLERANCE
                         ? "text-green-600 dark:text-green-500"
                         : totalProfitLoss < -BALANCE_TOLERANCE
@@ -739,7 +784,7 @@ export default function SessionPage() {
                     )}
                   >
                     {totalProfitLoss > 0 ? "+" : ""}
-                    {session.currency} {totalProfitLoss.toFixed(2)}
+                    {getCurrencySymbol(session.currency)}{totalProfitLoss.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -755,82 +800,150 @@ export default function SessionPage() {
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          
-          {/* Phase Indicator */}
-          <div className="flex items-center justify-between pb-2 border-b">
-            <div className="flex items-center gap-3">
-              <span className="text-sm font-medium text-muted-foreground">Phase:</span>
-              <Badge 
-                variant={
-                  currentPhase === "finalized" ? "default" :
-                  currentPhase === "ready_to_finalize" ? "default" :
-                  currentPhase === "chip_entry" ? "secondary" :
-                  "outline"
-                }
-                className="text-xs"
-              >
-                {currentPhase === "finalized" ? "Finalized" :
-                 currentPhase === "ready_to_finalize" ? "Ready to Finalize" :
-                 currentPhase === "chip_entry" ? "Chip Entry" :
-                 "Active Game"}
-              </Badge>
-              <span className="hidden md:inline text-xs text-muted-foreground">
-                {currentPhase === "active_game" && "Track buy-ins as players join or re-buy"}
-                {currentPhase === "chip_entry" && "Enter final chip counts for each player"}
-                {currentPhase === "ready_to_finalize" && "Review settlement calculations before finalizing"}
-                </span>
-            </div>
-            {/* Desktop only - mobile actions in sticky footer */}
-            <div className="hidden md:flex md:items-center md:gap-2">
-              {currentPhase === "active_game" && (
-                <Button
-                  onClick={() => setEditingPlayerId("new")}
-                  size="sm"
-                  variant="default"
-                  className="gap-2"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Player
-                </Button>
-              )}
-            {currentPhase === "active_game" && !hasCashouts && (
-              <div className="flex flex-col items-end gap-1">
-                <Button
-                  onClick={startChipEntry}
-                  size="sm"
-                  variant="outline"
-                  disabled={!canStartChipEntry || isStartingChipEntry}
-                >
-                  {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
-                </Button>
-                {!canStartChipEntry && startChipEntryBlockedReason && (
-                  <span className="text-xs text-destructive">
-                    {startChipEntryBlockedReason}
-                  </span>
+
+          {/* Stage Banner - prominent phase display */}
+          <StageBanner
+            className="mb-4"
+            phase={currentPhase}
+            subtitle={
+              currentPhase === "active_game"
+                ? "Add players and record buy-ins"
+                : currentPhase === "chip_entry"
+                  ? "Enter final chip counts for each player"
+                  : currentPhase === "ready_to_finalize"
+                    ? "Review settlement calculations before finalizing"
+                    : "Session is locked. Share results below."
+            }
+            missingBuyinsCount={missingBuyinsPlayerIds.length}
+            onScrollToMissingBuyins={() =>
+              document
+                .querySelector("[data-players-section]")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            actions={
+              <div className="hidden md:flex md:items-center md:gap-2">
+                {canEdit && (currentPhase === "active_game" || currentPhase === "finalized") && (
+                  <Button
+                    onClick={() => setEditingPlayerId("new")}
+                    size="sm"
+                    variant="default"
+                    className="gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add Player
+                  </Button>
+                )}
+                {canEdit && currentPhase === "active_game" && !hasCashouts && (
+                  <div className="flex flex-col items-end gap-1">
+                    <Button
+                      onClick={startChipEntry}
+                      size="sm"
+                      variant="outline"
+                      disabled={!canStartChipEntry || isStartingChipEntry}
+                    >
+                      {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
+                    </Button>
+                    {!canStartChipEntry && startChipEntryBlockedReason && (
+                      <span className="text-xs text-destructive">
+                        {startChipEntryBlockedReason}
+                      </span>
+                    )}
+                  </div>
+                )}
+                {canEdit && currentPhase === "chip_entry" && (
+                  <Button
+                    onClick={resetChipEntry}
+                    size="sm"
+                    variant="outline"
+                    disabled={isResettingChipEntry}
+                  >
+                    {isResettingChipEntry ? "Going back…" : "Go back to Add Player"}
+                  </Button>
                 )}
               </div>
-            )}
-            </div>
-          </div>
+            }
+          />
 
           {/* Players Table */}
+          <div data-players-section>
           <PlayersTable
             players={players}
             playerResults={playerResults}
             currency={session.currency}
             isFinalized={isFinalized}
+            canEdit={canEdit}
             currentPhase={currentPhase}
             user={user}
             userAlreadyLinked={userAlreadyLinkedToAnyPlayer}
-            onRowClick={(playerId) => setActionsPlayerId(playerId)}
+            onRowClick={(playerId) => {
+              const p = players.find((x) => x.id === playerId)
+              if (!p) return
+              if (currentPhase === "active_game") {
+                setAddBuyinPlayer(p)
+              } else if (currentPhase === "chip_entry" || currentPhase === "ready_to_finalize") {
+                setAddCashoutPlayer(p)
+              } else {
+                setActionsPlayerId(playerId)
+              }
+            }}
+            onRowLongPress={(playerId) => setActionsPlayerId(playerId)}
+            onOpenActions={(playerId) => setActionsPlayerId(playerId)}
             onAddPlayerClick={() => setEditingPlayerId("new")}
             onLinkIdentity={handleLinkIdentity}
             missingBuyinsPlayerIds={missingBuyinsPlayerIds}
           />
+          </div>
 
-          {/* Settlement Preview - Enhanced Two-Column Layout */}
-          {hasCashouts && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6" data-settlement-preview>
+          {/* Settlement Preview - Progressive: checklist + View settlement, then Settlement Summary + Who Pays Whom */}
+          <div className="mt-6" data-settlement-preview>
+          {!hasCashouts ? (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-lg">Settlement Preview</CardTitle>
+                </div>
+                <CardDescription>
+                  Not ready yet — add cash-outs to see who owes whom.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : !showSettlementDetails ? (
+            <div className="space-y-4">
+              <FinalizationChecklist
+                items={[
+                  {
+                    label: `${players.length} player${players.length !== 1 ? "s" : ""} with buy-ins`,
+                    ok: missingBuyinsPlayerIds.length === 0,
+                  },
+                  {
+                    label: `${players.filter((p) => {
+                      const r = playerResults.find((pr) => pr.player.id === p.id)
+                      return r && r.totalCashouts > 0
+                    }).length} player${players.length !== 1 ? "s" : ""} with cash-outs`,
+                    ok: players.every((p) => {
+                      const r = playerResults.find((pr) => pr.player.id === p.id)
+                      return r && r.totalCashouts > 0
+                    }),
+                  },
+                  {
+                    label: totalsDontBalance ? "Settlement may not balance (rake?)" : "Settlement balanced",
+                    ok: !totalsDontBalance,
+                    warning: totalsDontBalance,
+                    optional: true,
+                  },
+                ]}
+              />
+              <Button
+                onClick={() => setShowSettlementDetails(true)}
+                size="lg"
+                className="w-full min-h-[48px] text-base font-semibold"
+              >
+                View settlement
+              </Button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Left: Settlement Summary */}
               <Card className="shadow-sm">
                 <CardHeader>
@@ -860,12 +973,12 @@ export default function SessionPage() {
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
                                 <p className="text-lg font-bold font-mono text-green-600 dark:text-green-500">
-                                  +{session.currency} {result.pl.toFixed(2)}
+                                  +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
                               <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-green-200/50 dark:border-green-900/50">
-                                <span>Buy-in: <span className="font-mono font-medium text-foreground">{session.currency} {result.totalBuyins.toFixed(2)}</span></span>
-                                <span>Final: <span className="font-mono font-medium text-foreground">{session.currency} {result.totalCashouts.toFixed(2)}</span></span>
+                                <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
+                                <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
                             </div>
                             {/* Desktop: Original horizontal layout */}
@@ -877,15 +990,15 @@ export default function SessionPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-sm">{result.player.name}</p>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                  <span>Buy-in {session.currency} {result.totalBuyins.toFixed(2)}</span>
+                                  <span>Buy-in {getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span>
                                   <span>•</span>
-                                  <span>Final {session.currency} {result.totalCashouts.toFixed(2)}</span>
+                                  <span>Final {getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-semibold text-green-600 dark:text-green-500">
-                                +{session.currency} {result.pl.toFixed(2)}
+                                +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Winnings</p>
                               </div>
@@ -916,12 +1029,12 @@ export default function SessionPage() {
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
                                 <p className="text-lg font-bold font-mono text-red-600 dark:text-red-500">
-                                  {session.currency} {result.pl.toFixed(2)}
+                                  {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
                               <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-red-200/50 dark:border-red-900/50">
-                                <span>Buy-in: <span className="font-mono font-medium text-foreground">{session.currency} {result.totalBuyins.toFixed(2)}</span></span>
-                                <span>Final: <span className="font-mono font-medium text-foreground">{session.currency} {result.totalCashouts.toFixed(2)}</span></span>
+                                <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
+                                <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
                             </div>
                             {/* Desktop: Original horizontal layout */}
@@ -933,15 +1046,15 @@ export default function SessionPage() {
                               <div className="flex-1 min-w-0">
                                 <p className="font-medium text-sm">{result.player.name}</p>
                                 <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
-                                  <span>Buy-in {session.currency} {result.totalBuyins.toFixed(2)}</span>
+                                  <span>Buy-in {getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span>
                                   <span>•</span>
-                                  <span>Final {session.currency} {result.totalCashouts.toFixed(2)}</span>
+                                  <span>Final {getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span>
                                 </div>
                               </div>
                             </div>
                             <div className="text-right">
                               <p className="text-sm font-semibold text-red-600 dark:text-red-500">
-                                {session.currency} {result.pl.toFixed(2)}
+                                {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Losses</p>
                               </div>
@@ -957,13 +1070,13 @@ export default function SessionPage() {
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Winnings:</span>
                       <span className="text-sm font-semibold text-green-600 dark:text-green-500">
-                        +{session.currency} {totalWinnings.toFixed(2)}
+                        +{getCurrencySymbol(session.currency)}{totalWinnings.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Losses:</span>
                       <span className="text-sm font-semibold text-red-600 dark:text-red-500">
-                        {session.currency} {totalLosses.toFixed(2)}
+                        {getCurrencySymbol(session.currency)}{totalLosses.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -1012,7 +1125,7 @@ export default function SessionPage() {
                             </div>
                             <div className="flex items-center justify-end pt-1 border-t border-border/50">
                               <span className="font-mono font-bold text-lg text-foreground">
-                                {session.currency} {transfer.amount.toFixed(2)}
+                                {getCurrencySymbol(session.currency)}{transfer.amount.toFixed(2)}
                               </span>
                             </div>
                           </div>
@@ -1033,7 +1146,7 @@ export default function SessionPage() {
                             {transfer.creditorName[0].toUpperCase()}
                           </div>
                               <span className="font-mono font-bold text-lg text-foreground whitespace-nowrap">
-                            {session.currency} {transfer.amount.toFixed(2)}
+                            {getCurrencySymbol(session.currency)}{transfer.amount.toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -1045,6 +1158,7 @@ export default function SessionPage() {
               </Card>
             </div>
           )}
+          </div>
 
           {/* Balance Warning (if needed) */}
           {hasCashouts && totalsDontBalance && (
@@ -1058,29 +1172,51 @@ export default function SessionPage() {
           {/* Global Actions - Desktop only, mobile actions in sticky footer */}
           <div className="hidden md:flex md:justify-end pt-4 border-t">
             {!isFinalized ? (
-              currentPhase === "ready_to_finalize" ? (
-                <Button 
-                  onClick={handleFinalizeSession} 
-                  size="lg" 
-                  className="min-w-[160px]"
-                >
-                  Finalize Session
-                </Button>
-              ) : currentPhase === "chip_entry" ? (
-                <Button 
-                  onClick={() => {
-                    // Scroll to settlement preview if it exists
-                    if (hasCashouts) {
-                      document.querySelector('[data-settlement-preview]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    }
-                  }}
-                  size="lg" 
-                  className="min-w-[160px]"
-                  variant="default"
-                >
-                  Review Settlement
-                </Button>
-              ) : null
+              <>
+                {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
+                  <Button 
+                    onClick={() => setShowSettlementDetails(true)}
+                    size="lg" 
+                    className="min-w-[160px]"
+                  >
+                    View settlement
+                  </Button>
+                )}
+                {canEdit && currentPhase === "ready_to_finalize" && showSettlementDetails && (
+                  <Button 
+                    onClick={handleFinalizeSession} 
+                    size="lg" 
+                    className="min-w-[160px]"
+                  >
+                    Finalize Session
+                  </Button>
+                )}
+                {canEdit && currentPhase === "chip_entry" && (
+                  <>
+                    <Button
+                      onClick={resetChipEntry}
+                      size="lg"
+                      variant="outline"
+                      className="min-w-[160px]"
+                      disabled={isResettingChipEntry}
+                    >
+                      {isResettingChipEntry ? "Going back…" : "Go back to Add Player"}
+                    </Button>
+                    {hasCashouts && (
+                      <Button 
+                        onClick={() => {
+                          document.querySelector('[data-settlement-preview]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                        }}
+                        size="lg" 
+                        className="min-w-[160px]"
+                        variant="default"
+                      >
+                        Review Settlement
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
             ) : (
               <div className="flex gap-3">
                 <Button 
@@ -1119,11 +1255,22 @@ export default function SessionPage() {
             )}
           </div>
 
-          {/* Mobile: Sticky Footer for Global Actions */}
-          {hasCashouts && (
+          {/* Mobile: Sticky Footer for Global Actions - show when finalized (Share etc) or when phase actions available */}
+          {(hasCashouts || (canEdit && currentPhase === "chip_entry")) && (isFinalized || canEdit || (currentPhase === "ready_to_finalize" && !showSettlementDetails)) && (
             <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg">
               {!isFinalized ? (
-                currentPhase === "ready_to_finalize" ? (
+                <>
+                  {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
+                    <Button 
+                      onClick={() => setShowSettlementDetails(true)} 
+                      size="lg" 
+                      variant="default"
+                      className="w-full h-12 text-base font-medium"
+                    >
+                      View settlement
+                    </Button>
+                  )}
+                  {canEdit && currentPhase === "ready_to_finalize" && showSettlementDetails && (
                   <Button 
                     onClick={handleFinalizeSession} 
                     size="lg" 
@@ -1131,21 +1278,33 @@ export default function SessionPage() {
                   >
                     Finalize Session
                   </Button>
-                ) : currentPhase === "chip_entry" ? (
-                  <Button 
-                    onClick={() => {
-                      // Scroll to settlement preview if it exists
-                      if (hasCashouts) {
-                        document.querySelector('[data-settlement-preview]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                      }
-                    }}
-                    size="lg" 
-                    variant="default"
-                    className="w-full h-12 text-base font-medium"
-                  >
-                    Review Settlement
-                  </Button>
-                ) : null
+                  )}
+                  {canEdit && currentPhase === "chip_entry" && (
+                    <div className="space-y-2">
+                      <Button
+                        onClick={resetChipEntry}
+                        size="lg"
+                        variant="outline"
+                        className="w-full h-12 text-base font-medium"
+                        disabled={isResettingChipEntry}
+                      >
+                        {isResettingChipEntry ? "Going back…" : "Go back to Add Player"}
+                      </Button>
+                      {hasCashouts && (
+                        <Button 
+                          onClick={() => {
+                            document.querySelector('[data-settlement-preview]')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                          }}
+                          size="lg" 
+                          variant="default"
+                          className="w-full h-12 text-base font-medium"
+                        >
+                          Review Settlement
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="space-y-2">
                   <Button 
@@ -1196,8 +1355,8 @@ export default function SessionPage() {
           const actionsPlayer = players.find((p) => p.id === actionsPlayerId) ?? null
           const result = playerResults.find((r) => r.player.id === actionsPlayerId)
           const formattedBalance = result
-            ? `${session.currency} ${(result.totalBuyins - result.totalCashouts).toFixed(2)}`
-            : `${session.currency} 0.00`
+            ? `${getCurrencySymbol(session.currency)}${(result.totalBuyins - result.totalCashouts).toFixed(2)}`
+            : `${getCurrencySymbol(session.currency)}0.00`
           return (
             <PlayerActionsSheet
               open={!!actionsPlayerId}
@@ -1206,8 +1365,12 @@ export default function SessionPage() {
               formattedBalance={formattedBalance}
               currency={session.currency}
               allowCashOut={
-                currentPhase === "chip_entry" || currentPhase === "ready_to_finalize"
+                canEdit &&
+                (currentPhase === "chip_entry" ||
+                  currentPhase === "ready_to_finalize" ||
+                  currentPhase === "finalized")
               }
+              canEdit={canEdit}
               onAction={(action: PlayerActionType, player: Player) => {
                 if (action === "add-buyin") {
                   setAddBuyinPlayer(player)
@@ -1236,6 +1399,7 @@ export default function SessionPage() {
             sessionId={sessionId}
             clubId={session.clubId}
             currency={session.currency}
+            recentAmounts={recentBuyinAmounts}
             onSuccess={() => {
               reloadTransactions()
               reloadPlayers()
@@ -1257,6 +1421,7 @@ export default function SessionPage() {
               clubId={session.clubId}
               currency={session.currency}
               currentBalance={currentBalance}
+              recentAmounts={recentCashoutAmounts}
               onSuccess={() => {
                 reloadTransactions()
                 reloadPlayers()
@@ -1323,6 +1488,7 @@ export default function SessionPage() {
             clubId={session.clubId}
             currency={session.currency}
             isFinalized={isFinalized}
+            canEdit={canEdit}
             transactions={transactions}
             playerName={playerName}
             setPlayerName={setPlayerName}
@@ -1349,6 +1515,52 @@ export default function SessionPage() {
             onClose={() => setShowShareDialog(false)}
           />
         )}
+
+        {/* Finalized Success Dialog - shown after user clicks Finalize Session */}
+        <Dialog open={showFinalizedDialog} onOpenChange={setShowFinalizedDialog}>
+          <DialogContent
+            className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-md md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
+            onOpenAutoFocus={(e) => {
+              if (!isDesktop) e.preventDefault()
+            }}
+          >
+            <DialogHeader className="flex flex-col items-center text-center space-y-2 px-6 pt-6 md:px-0 md:pt-0">
+              <div className="flex items-center gap-2">
+                <Lock className="h-6 w-6 text-muted-foreground" />
+                <DialogTitle className="text-xl font-semibold">Finalized</DialogTitle>
+              </div>
+              <DialogDescription className="text-sm text-muted-foreground">
+                Session is locked. Share results below.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col px-6 pb-6 md:px-0 md:pb-0 space-y-6">
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => {
+                    setShowFinalizedDialog(false)
+                    handleShareResults()
+                  }}
+                  size="lg"
+                  className="w-full h-12 text-base font-medium"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Share Results
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowFinalizedDialog(false)
+                    router.push("/")
+                  }}
+                  variant="outline"
+                  size="lg"
+                  className="w-full h-12 text-base font-medium"
+                >
+                  Home
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {/* Fixed Buy-in Dialog */}
         {showFixedBuyinDialog && (
@@ -1435,8 +1647,8 @@ export default function SessionPage() {
           </Dialog>
         )}
 
-        {/* Mobile: Sticky Footer for Primary Actions */}
-        {!isFinalized && currentPhase !== "ready_to_finalize" && !(hasCashouts && currentPhase === "chip_entry") && (
+        {/* Mobile: Sticky Footer for Primary Actions - Add Player, Start Chip Entry (owner/admin only) */}
+        {canEdit && !isFinalized && currentPhase !== "ready_to_finalize" && !(hasCashouts && currentPhase === "chip_entry") && (
           <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg">
             {currentPhase === "active_game" ? (
               // Active game phase - show both buttons like desktop
@@ -2016,16 +2228,109 @@ function ShareStep({
   )
 }
 
+// Mobile Player Card - supports tap (primary) and long-press (secondary actions)
+function MobilePlayerCard({
+  result,
+  currency,
+  showCashouts,
+  showPL,
+  plColor,
+  isEditable,
+  isMissingBuyin,
+  user,
+  userAlreadyLinked,
+  onRowClick,
+  onRowLongPress,
+  onLinkIdentity,
+}: {
+  result: { player: Player; totalBuyins: number; totalCashouts: number; pl: number }
+  currency: string
+  showCashouts: boolean
+  showPL: boolean
+  plColor: string
+  isEditable: boolean
+  isMissingBuyin: boolean
+  user: { id: string; email?: string } | null
+  userAlreadyLinked: boolean
+  onRowClick: (playerId: string) => void
+  onRowLongPress?: (playerId: string) => void
+  onLinkIdentity: (playerId: string) => void
+}) {
+  const longPressHandlers = onRowLongPress
+    ? useLongPress(
+        () => isEditable && onRowClick(result.player.id),
+        () => onRowLongPress(result.player.id)
+      )
+    : null
+
+  return (
+    <Card
+      className={cn(
+        "shadow-sm",
+        isEditable && "cursor-pointer hover:bg-muted/50 active:bg-muted/70",
+        isMissingBuyin && "border-l-4 border-l-amber-500"
+      )}
+      {...(longPressHandlers || {
+        onClick: () => isEditable && onRowClick(result.player.id),
+      })}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-semibold text-lg truncate">{result.player.name}</p>
+              {user && result.player.profileId === user.id && (
+                <span className="text-xs text-muted-foreground shrink-0">(You)</span>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {result.totalBuyins > 0
+                ? `${getCurrencySymbol(currency as import("@/lib/currency").CurrencyCode)}${result.totalBuyins.toFixed(2)} buy-ins${showCashouts ? ` · ${getCurrencySymbol(currency as import("@/lib/currency").CurrencyCode)}${result.totalCashouts.toFixed(2)} cash-outs` : ""}`
+                : "No buy-in yet"}
+            </p>
+          </div>
+          <div className="text-right shrink-0 flex items-center gap-1">
+            <p className={cn("text-2xl font-bold font-mono whitespace-nowrap", plColor)}>
+              {showPL ? `${result.pl > 0 ? "+" : ""}${getCurrencySymbol(currency as CurrencyCode)}${result.pl.toFixed(2)}` : "—"}
+            </p>
+            {!isMissingBuyin && result.totalBuyins > 0 && (
+              <Check className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
+            )}
+          </div>
+        </div>
+        {user && !result.player.profileId && !userAlreadyLinked && (
+          <div className="mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                onLinkIdentity(result.player.id)
+              }}
+              className="h-9 text-xs"
+            >
+              This is me
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
 // Players Table Component
 function PlayersTable({
   players,
   playerResults,
   currency,
   isFinalized,
+  canEdit = false,
   currentPhase,
   user,
   userAlreadyLinked,
   onRowClick,
+  onRowLongPress,
+  onOpenActions,
   onAddPlayerClick,
   onLinkIdentity,
   missingBuyinsPlayerIds = [],
@@ -2039,23 +2344,27 @@ function PlayersTable({
   }>
   currency: string
   isFinalized: boolean
+  canEdit?: boolean
   currentPhase: "active_game" | "chip_entry" | "ready_to_finalize" | "finalized"
   user: { id: string; email?: string } | null
   userAlreadyLinked: boolean
   onRowClick: (playerId: string) => void
+  onRowLongPress?: (playerId: string) => void
+  onOpenActions?: (playerId: string) => void
   onAddPlayerClick: () => void
   onLinkIdentity: (playerId: string) => void
   missingBuyinsPlayerIds?: string[]
 }) {
-  // Phase-aware display logic helper
+  // Phase-aware display logic — only owner/admin can edit; members read-only
   const getPhaseDisplay = (result: typeof playerResults[0]) => {
     const showCashouts = currentPhase !== "active_game" || result.totalCashouts > 0
     const showPL = currentPhase !== "active_game" || result.totalCashouts > 0
-    const isEditable = !isFinalized && (
+    const phaseAllowsEdit =
       currentPhase === "active_game" ||
       currentPhase === "chip_entry" ||
-      currentPhase === "ready_to_finalize"
-    )
+      currentPhase === "ready_to_finalize" ||
+      currentPhase === "finalized"
+    const isEditable = canEdit && phaseAllowsEdit
     return { showCashouts, showPL, isEditable }
   }
 
@@ -2070,36 +2379,38 @@ function PlayersTable({
     <div className="space-y-4">
       {/* Players Table - Desktop */}
       {players.length === 0 ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center space-y-4">
-              <div className="text-4xl">👥</div>
-              <div className="space-y-1">
-                <p className="text-base font-medium text-foreground">
-                  No players yet
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {isFinalized 
-                    ? "This session has been finalized."
-                    : "Add a player to get started."}
-                </p>
-              </div>
-              {/* Mobile: Inline Add Player button as backup */}
-              {!isFinalized && (
-                <div className="md:hidden pt-2">
-                  <Button
-                    onClick={onAddPlayerClick}
-                    size="lg"
-                    className="gap-2"
-                  >
-                    <Plus className="h-5 w-5" />
-                    Add Player
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon="🎲"
+          title={
+            isFinalized
+              ? "No players"
+              : currentPhase === "active_game" || currentPhase === "chip_entry"
+                ? "Add your first player"
+                : "Add players"
+          }
+          description={
+            isFinalized
+              ? "This session has been finalized."
+              : currentPhase === "active_game"
+                ? "to start the session"
+                : currentPhase === "chip_entry"
+                  ? "to record cash-outs"
+                  : "to get started"
+          }
+          action={
+            canEdit && (
+              <Button
+                onClick={onAddPlayerClick}
+                size="lg"
+                className="gap-2 min-h-[48px]"
+              >
+                <Plus className="h-5 w-5" />
+                Add Player
+              </Button>
+            )
+          }
+          hideActionOnMobile={currentPhase === "active_game"}
+        />
       ) : (
         <>
           {/* Mobile: Card List View */}
@@ -2108,73 +2419,22 @@ function PlayersTable({
               const { showCashouts, showPL, isEditable } = getPhaseDisplay(result)
               const plColor = getPLColor(result.pl, showPL)
               const isMissingBuyin = missingBuyinsPlayerIds.includes(result.player.id)
-              
               return (
-                <Card
+                <MobilePlayerCard
                   key={result.player.id}
-                  className={cn(
-                    "shadow-sm",
-                    isEditable && "cursor-pointer hover:bg-muted/50",
-                    isMissingBuyin && "border-destructive/30"
-                  )}
-                  onClick={() => isEditable && onRowClick(result.player.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Left: Player Name */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-bold text-base truncate">{result.player.name}</p>
-                          {isMissingBuyin && (
-                            <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
-                              No buy-in
-                            </Badge>
-                          )}
-                          {user && result.player.profileId === user.id && (
-                            <span className="text-xs text-muted-foreground shrink-0">(You)</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Buy-ins: {currency} {result.totalBuyins.toFixed(2)} | Cash-outs: {showCashouts ? `${currency} ${result.totalCashouts.toFixed(2)}` : "—"}
-                        </p>
-                      </div>
-                      {/* Right: P/L */}
-                      <div className="text-right shrink-0">
-                        <p className={cn("text-xl font-bold font-mono", plColor)}>
-                          {showPL 
-                            ? `${result.pl > 0 ? "+" : ""}${currency} ${result.pl.toFixed(2)}`
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
-                    {/* Actions row */}
-                    {isEditable && (
-                      <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
-                        {user && !isFinalized && !result.player.profileId && !userAlreadyLinked && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onLinkIdentity(result.player.id)
-                            }}
-                            className="h-8 text-xs"
-                          >
-                            This is me
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onRowClick(result.player.id)}
-                          className="h-8"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                  result={result}
+                  currency={currency}
+                  showCashouts={showCashouts}
+                  showPL={showPL}
+                  plColor={plColor}
+                  isEditable={isEditable}
+                  isMissingBuyin={isMissingBuyin}
+                  user={user}
+                  userAlreadyLinked={userAlreadyLinked}
+                  onRowClick={onRowClick}
+                  onRowLongPress={onRowLongPress}
+                  onLinkIdentity={onLinkIdentity}
+                />
               )
             })}
           </div>
@@ -2210,11 +2470,11 @@ function PlayersTable({
                         )}
                         onClick={() => isEditable && onRowClick(result.player.id)}
                       >
-                        <TableCell className="font-medium text-base">
+                        <TableCell className={cn("font-medium text-base", isMissingBuyin && "border-l-4 border-l-amber-500")}>
                           <div className="flex items-center gap-2">
                             <span>{result.player.name}</span>
                             {isMissingBuyin && (
-                              <Badge variant="outline" className="text-xs bg-destructive/10 text-destructive border-destructive/30">
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-500 border-amber-500/30">
                                 No buy-in
                               </Badge>
                             )}
@@ -2223,29 +2483,29 @@ function PlayersTable({
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="text-right font-mono text-base">
-                          {currency} {result.totalBuyins.toFixed(2)}
+                        <TableCell className="text-right font-mono text-base whitespace-nowrap">
+                          {getCurrencySymbol(currency as CurrencyCode)}{result.totalBuyins.toFixed(2)}
                         </TableCell>
                         <TableCell className={cn(
-                          "text-right font-mono text-base",
+                          "text-right font-mono text-base whitespace-nowrap",
                           !showCashouts && "text-muted-foreground/50"
                         )}>
                           {showCashouts 
-                            ? `${currency} ${result.totalCashouts.toFixed(2)}`
-                            : currentPhase === "active_game" ? "—" : `${currency} ${result.totalCashouts.toFixed(2)}`}
+                            ? `${getCurrencySymbol(currency as CurrencyCode)}${result.totalCashouts.toFixed(2)}`
+                            : currentPhase === "active_game" ? "—" : `${getCurrencySymbol(currency as CurrencyCode)}${result.totalCashouts.toFixed(2)}`}
                         </TableCell>
                         <TableCell className={cn(
-                          "text-right font-mono text-lg font-semibold",
+                          "text-right font-mono text-lg font-semibold whitespace-nowrap",
                             plColor
                         )}>
                           {showPL 
-                            ? `${result.pl > 0 ? "+" : ""}${currency} ${result.pl.toFixed(2)}`
-                            : currentPhase === "active_game" ? "Pending cash-outs" : `${result.pl > 0 ? "+" : ""}${currency} ${result.pl.toFixed(2)}`}
+                            ? `${result.pl > 0 ? "+" : ""}${getCurrencySymbol(currency as CurrencyCode)}${result.pl.toFixed(2)}`
+                            : currentPhase === "active_game" ? "Pending cash-outs" : `${result.pl > 0 ? "+" : ""}${getCurrencySymbol(currency as CurrencyCode)}${result.pl.toFixed(2)}`}
                         </TableCell>
-                        {isEditable && (
+                        {(isEditable || onOpenActions) && (
                           <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-2">
-                              {user && !isFinalized && !result.player.profileId && !userAlreadyLinked && (
+                              {user && !result.player.profileId && !userAlreadyLinked && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -2258,18 +2518,21 @@ function PlayersTable({
                                   This is me
                                 </Button>
                               )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => onRowClick(result.player.id)}
-                                className="h-8"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                              {onOpenActions && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => onOpenActions(result.player.id)}
+                                  className="h-8 min-w-8"
+                                  aria-label="More actions"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              )}
                             </div>
                           </TableCell>
                         )}
-                        {!isEditable && !isFinalized && (
+            {!isEditable && !onOpenActions && !isFinalized && (
                           <TableCell className="text-right w-[100px]"></TableCell>
                         )}
                       </TableRow>
@@ -2294,6 +2557,7 @@ function EditPlayerDialog({
   clubId,
   currency,
   isFinalized,
+  canEdit = false,
   transactions,
   playerName,
   setPlayerName,
@@ -2308,6 +2572,7 @@ function EditPlayerDialog({
   clubId: string
   currency: string
   isFinalized: boolean
+  canEdit?: boolean
   transactions: Transaction[]
   playerName: string
   setPlayerName: (name: string) => void
@@ -2654,7 +2919,7 @@ function EditPlayerDialog({
                 type="text"
                 value={editingPlayerName}
                 onChange={(e) => setEditingPlayerName(e.target.value)}
-                disabled={isSavingPlayerName || isFinalized}
+                disabled={isSavingPlayerName || !canEdit}
                 className="h-12 md:h-10 text-base md:text-sm"
                 onBlur={handleUpdatePlayerName}
                 onKeyDown={(e) => {
@@ -2690,8 +2955,8 @@ function EditPlayerDialog({
             </div>
           )}
 
-          {/* Update Section - Phase-Aware */}
-          {player && !isFinalized && (
+          {/* Update Section - Phase-Aware (owner/admin only) */}
+          {player && canEdit && (
             <div className="space-y-4 py-3 border-b md:py-4">
               <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-3 md:mb-4">Update Amounts</p>
               
@@ -2756,8 +3021,8 @@ function EditPlayerDialog({
                 </div>
               )}
               
-              {/* Add Buy-in - Available in Active Game and Ready to Finalize phases */}
-              {(currentPhase === "active_game" || currentPhase === "ready_to_finalize") && (
+              {/* Add Buy-in - Available in Active Game, Ready to Finalize, and Finalized (admin only) */}
+              {(currentPhase === "active_game" || currentPhase === "ready_to_finalize" || currentPhase === "finalized") && (
                 <form onSubmit={handleAddBuyin} className="flex items-center gap-2">
                   <span className="text-sm font-medium w-24">Add Buy-in</span>
                   <Input
@@ -2789,8 +3054,8 @@ function EditPlayerDialog({
                 </p>
               )}
 
-              {/* Add Cash-out - Available in Chip Entry and Ready to Finalize phases */}
-              {(currentPhase === "chip_entry" || currentPhase === "ready_to_finalize") && (
+              {/* Add Cash-out - Available in Chip Entry, Ready to Finalize, and Finalized (admin only) */}
+              {(currentPhase === "chip_entry" || currentPhase === "ready_to_finalize" || currentPhase === "finalized") && (
                 <>
                   {currentPhase === "chip_entry" && (
                     <div className="text-xs text-muted-foreground mb-2 italic">
@@ -2817,8 +3082,8 @@ function EditPlayerDialog({
                 </>
               )}
 
-              {/* Read-only message - Only in Finalized phase */}
-              {currentPhase === "finalized" && (
+              {/* Read-only message - Only in Finalized phase for non-admin users */}
+              {currentPhase === "finalized" && !canEdit && (
                 <p className="text-xs text-muted-foreground italic">
                   This session has been finalized and cannot be modified.
                 </p>
@@ -2827,7 +3092,7 @@ function EditPlayerDialog({
           )}
 
           {/* Live Result Preview - Only show in appropriate phases */}
-          {player && !isFinalized && (pendingBuyin > 0 || pendingCashout > 0) && (
+          {player && canEdit && (pendingBuyin > 0 || pendingCashout > 0) && (
             <div className="py-3 border-b md:py-4">
               <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide mb-2">Result After Save</p>
               <div className="flex justify-between items-center">
@@ -3021,38 +3286,47 @@ function ShareResultsDialog({
           <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b md:border-b-0 md:p-0 md:pb-0">
             <DialogHeader className="md:text-left">
               <DialogTitle className="text-xl md:text-lg font-semibold">Share Game Results</DialogTitle>
-        </DialogHeader>
+            </DialogHeader>
           </div>
 
           {/* Mobile: Scrollable Content */}
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:flex-none md:min-h-auto md:overflow-visible md:p-0 md:py-4">
             <div className="bg-muted/50 rounded-lg p-4 md:p-6 border">
-            <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
-              {summary}
-            </pre>
+              <pre className="whitespace-pre-wrap text-sm font-mono leading-relaxed">
+                {summary}
+              </pre>
+            </div>
           </div>
-        </div>
 
           {/* Mobile: Fixed Action Footer */}
           <div className="flex-shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 border-t bg-background md:border-t-0 md:bg-transparent md:p-0 md:pt-4 md:pb-0">
-            <div className="flex justify-center">
-          <Button
-            onClick={onCopy}
-            size="lg"
-                className="w-full h-12 md:h-10 md:min-w-[200px] text-base md:text-sm font-medium"
-          >
-            {copied ? (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Copied to Clipboard!
-              </>
-            ) : (
-              <>
-                <Copy className="mr-2 h-4 w-4" />
-                Copy to Clipboard
-              </>
-            )}
-          </Button>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-between sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={onClose}
+                size="lg"
+                className="w-full sm:w-auto h-12 md:h-10 text-base md:text-sm order-2 sm:order-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={onCopy}
+                size="lg"
+                className="w-full sm:w-auto h-12 md:h-10 md:min-w-[200px] text-base md:text-sm font-medium order-1 sm:order-2"
+              >
+                {copied ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Copy className="mr-2 h-4 w-4" />
+                    Copy to Clipboard
+                  </>
+                )}
+              </Button>
             </div>
           </div>
         </div>

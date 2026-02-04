@@ -27,6 +27,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# legacy CSV data (PII); keep locally for bulk-link script
+Legacy_Data/*.csv
+
 # vercel
 .vercel
 

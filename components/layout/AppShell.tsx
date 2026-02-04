@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, Plus, ChevronDown, Copy, Check, UserCog } from "lucide-react"
+import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, Plus, ChevronDown, Copy, Check, UserCog, UserPlus, Link2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
@@ -103,7 +103,7 @@ function JoinCodeCopyRow({ joinCode }: { joinCode: string }) {
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user, loading, signOut } = useAuth()
+  const { user, loading } = useAuth()
   const { activeClub, clubs, loading: clubsLoading, setActiveClub, createClub } = useClub()
   const { isSidebarOpen, openSidebar, closeSidebar, closeAllOverlays } = useUIState()
   const isDesktop = useIsDesktop()
@@ -138,8 +138,11 @@ export function AppShell({ children }: AppShellProps) {
     }
   }
 
-  const handleSignOut = async () => {
-    await signOut()
+  const handleSignOut = () => {
+    // Navigate to dedicated logout route - ensures signOut + storage clear completes before redirect
+    if (typeof window !== "undefined") {
+      window.location.href = "/auth/logout"
+    }
   }
 
   const navItems = [
@@ -199,7 +202,7 @@ export function AppShell({ children }: AppShellProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "w-64 border-r bg-background flex flex-col transition-transform duration-300 ease-in-out shadow-xl",
+          "w-64 border-r bg-background flex flex-col min-h-0 overflow-y-auto transition-transform duration-300 ease-in-out shadow-xl",
           "md:translate-x-0 md:static md:z-auto md:shadow-none",
           isSidebarOpen
             ? "fixed left-0 top-0 bottom-0 z-[106] translate-x-0"
@@ -278,16 +281,44 @@ export function AppShell({ children }: AppShellProps) {
                     </button>
                   ))}
                   <div className="border-t mt-1 space-y-0">
+                    {(activeClub?.role === "owner" || activeClub?.role === "admin") && (
+                      <>
+                        <Link
+                          href="/club/members"
+                          onClick={() => {
+                            setShowClubSwitcher(false)
+                            closeSidebar()
+                          }}
+                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+                        >
+                          <UserCog className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          Manage members
+                        </Link>
+                        {activeClub?.slug === "base44" && (
+                          <Link
+                            href="/club/link-players"
+                            onClick={() => {
+                              setShowClubSwitcher(false)
+                              closeSidebar()
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+                          >
+                            <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            Link players
+                          </Link>
+                        )}
+                      </>
+                    )}
                     <Link
-                      href="/club/members"
+                      href="/join"
                       onClick={() => {
                         setShowClubSwitcher(false)
                         closeSidebar()
                       }}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
+                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left text-primary"
                     >
-                      <UserCog className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      Manage members
+                      <UserPlus className="h-4 w-4 shrink-0" />
+                      Join a club
                     </Link>
                     <button
                       onClick={() => {
@@ -334,8 +365,8 @@ export function AppShell({ children }: AppShellProps) {
           })}
         </nav>
 
-        {/* User Info & Logout */}
-        <div className="p-4 border-t bg-muted/30 space-y-3">
+        {/* User Info & Logout - flex-shrink-0 keeps it visible when sidebar scrolls */}
+        <div className="flex-shrink-0 p-4 border-t bg-muted/30 space-y-3">
           {loading ? (
             <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-muted/50">
               <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted animate-pulse">
@@ -357,10 +388,15 @@ export function AppShell({ children }: AppShellProps) {
                 </div>
               </div>
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
                 className="w-full justify-start hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 transition-colors"
-                onClick={handleSignOut}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleSignOut()
+                }}
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout

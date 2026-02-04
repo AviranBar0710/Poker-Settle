@@ -31,7 +31,31 @@
   * {
     @apply border-border;
   }
+  html {
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-x: hidden;
   }
+}
+
+/* UX Refactor: Spacing scale (16/24/32/48px) */
+@layer utilities {
+  .space-y-ux-1 > * + * { margin-top: 1rem; }   /* 16px */
+  .space-y-ux-2 > * + * { margin-top: 1.5rem; } /* 24px */
+  .space-y-ux-3 > * + * { margin-top: 2rem; }   /* 32px */
+  .space-y-ux-4 > * + * { margin-top: 3rem; }   /* 48px */
+}
+
+/* UX Refactor: Typography scale */
+@layer utilities {
+  .text-hero { font-size: 2rem; line-height: 2.5rem; font-weight: 700; }
+  .text-title { font-size: 1.5rem; line-height: 2rem; font-weight: 600; }
+  .text-subtitle { font-size: 1.125rem; line-height: 1.75rem; font-weight: 500; }
+  .text-body { font-size: 1rem; line-height: 1.5rem; }
+  .text-caption { font-size: 0.875rem; line-height: 1.25rem; }
+  .text-fine { font-size: 0.75rem; line-height: 1rem; }
 }
