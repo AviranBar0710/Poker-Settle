@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo, useRef } from "react"
+import { useEffect, useState, useMemo, useRef, Suspense } from "react"
 import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
@@ -81,6 +81,14 @@ import { useLongPress } from "@/hooks/useLongPress"
 type Step = "setup" | "buyins" | "cashouts" | "results" | "share"
 
 export default function SessionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Loading…</p></div>}>
+      <SessionPageInner />
+    </Suspense>
+  )
+}
+
+function SessionPageInner() {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()

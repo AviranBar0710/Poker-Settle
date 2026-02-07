@@ -47,13 +47,16 @@ export default function LinkPlayersPage() {
       if (playersErr) { setError(playersErr.message || "Failed to load"); setPlayers([]); return }
       const rows: UnlinkedPlayer[] = (playersData || [])
         .filter((p: { sessions?: unknown }) => p.sessions)
-        .map((p: { id: string; name?: string; session_id: string; sessions?: { name?: string; created_at?: string } }) => ({
-          id: p.id,
-          name: p.name || "Unknown",
-          sessionId: p.session_id,
-          sessionName: p.sessions?.name || "Session",
-          sessionDate: p.sessions?.created_at || "",
-        }))
+        .map((p) => {
+          const s = p.sessions as unknown as { name?: string; created_at?: string } | null
+          return {
+            id: p.id as string,
+            name: (p.name as string) || "Unknown",
+            sessionId: p.session_id as string,
+            sessionName: s?.name || "Session",
+            sessionDate: s?.created_at || "",
+          }
+        })
       setPlayers(rows)
     } catch (e) { setError(e instanceof Error ? e.message : "Failed"); setPlayers([]) }
     finally { setLoading(false) }
@@ -86,7 +89,7 @@ export default function LinkPlayersPage() {
           p_club_id: activeClubId, p_player_name: assignTarget.playerName, p_profile_id: profileId,
         })
         if (rpcErr) { setError(rpcErr.message || "Link failed"); return }
-      } else {
+      } else if ("playerId" in assignTarget) {
         const { data, error: rpcErr } = await supabase.rpc("link_player_to_profile", {
           p_player_id: assignTarget.playerId, p_profile_id: profileId,
         })

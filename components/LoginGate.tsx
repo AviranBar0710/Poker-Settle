@@ -1,12 +1,20 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { LogIn } from "lucide-react"
 import { LoginDialog } from "@/components/LoginDialog"
 
 export function LoginGate() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><p className="text-muted-foreground">Loading…</p></div>}>
+      <LoginGateInner />
+    </Suspense>
+  )
+}
+
+function LoginGateInner() {
   const searchParams = useSearchParams()
   const redirectTo = searchParams.get("redirect") || undefined
   const [showLogin, setShowLogin] = useState(false)
