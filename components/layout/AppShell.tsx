@@ -328,6 +328,7 @@ export function AppShell({ children }: AppShellProps) {
                     <button
                       onClick={() => {
                         setShowClubSwitcher(false)
+                        closeSidebar()
                         setShowCreateClubDialog(true)
                       }}
                       className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-primary"
@@ -438,7 +439,7 @@ export function AppShell({ children }: AppShellProps) {
           }}
         >
           <DialogContent 
-            className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
+            className="!z-[120] !flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
             onOpenAutoFocus={(e) => {
               if (!isDesktop) {
                 e.preventDefault()
