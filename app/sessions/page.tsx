@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { getCurrencySymbol } from "@/lib/currency"
+import { formatDateDDMMYYYY } from "@/lib/utils"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
 import Link from "next/link"
@@ -169,7 +170,7 @@ export default function SessionsHistoryPage() {
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                               <div className="flex items-center gap-1.5 text-muted-foreground">
                                 <Calendar className="h-4 w-4 shrink-0" />
-                                <span>{new Date(session.createdAt).toLocaleDateString()}</span>
+                                <span>{formatDateDDMMYYYY(session.createdAt)}</span>
                               </div>
                               <div>
                                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Currency</p>

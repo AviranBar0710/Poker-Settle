@@ -241,10 +241,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Preserve any redirect URL from localStorage
+      const storedRedirect = typeof window !== "undefined" ? localStorage.getItem("auth_redirect") : null
+      const redirectTo = `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`
+      
+      console.log("🔵 [AUTH] signInWithGoogle called:", {
+        hasStoredRedirect: !!storedRedirect,
+        storedRedirect,
+        redirectTo
+      })
+      
+      // Verify auth_redirect is still in localStorage before OAuth redirect
+      if (typeof window !== "undefined" && storedRedirect) {
+        console.log("🔵 [AUTH] Verifying auth_redirect before OAuth:", localStorage.getItem("auth_redirect"))
+      }
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+          redirectTo,
+          // Note: redirect URL will be preserved via localStorage, not query param
+          // because OAuth flow doesn't preserve custom query params
         },
       })
       return { error }

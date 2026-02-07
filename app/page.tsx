@@ -1,7 +1,7 @@
 "use client"
 import { supabase } from "@/lib/supabaseClient"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/layout/AppShell"
 import { LoginGate } from "@/components/LoginGate"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -12,7 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
-import { cn } from "@/lib/utils"
+import { cn, formatDateDDMMYYYY } from "@/lib/utils"
 import Link from "next/link"
 import {
   Dialog,
@@ -28,9 +28,61 @@ import { useClub } from "@/contexts/ClubContext"
 
 export default function HomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const isDesktop = useIsDesktop()
   const { user, loading: authLoading } = useAuth()
   const { activeClubId } = useClub()
+  
+  // Store redirect URL from query param into localStorage when landing on home page
+  // This ensures it's preserved through OAuth flow
+  useEffect(() => {
+    const redirectParam = searchParams.get("redirect")
+    if (redirectParam && typeof window !== "undefined") {
+      // Decode the redirect param if it's encoded
+      const decodedRedirect = decodeURIComponent(redirectParam)
+      // Store it in localStorage so OAuth callback can read it
+      localStorage.setItem("auth_redirect", decodedRedirect)
+      console.log("🔵 [HOME] Stored redirect param to localStorage:", decodedRedirect)
+      console.log("🔵 [HOME] Verified storage:", localStorage.getItem("auth_redirect"))
+    }
+  }, [searchParams])
+  
+  // Handle redirect after login (only for non-OAuth flows like email OTP)
+  // OAuth callback handles its own redirect, so we skip if coming from callback
+  useEffect(() => {
+    if (!authLoading && user) {
+      // Skip redirect handling if we're coming from OAuth callback
+      // The callback page handles its own redirect
+      const currentPath = typeof window !== "undefined" ? window.location.pathname : ""
+      const referrer = typeof document !== "undefined" ? document.referrer : ""
+      
+      // If we came from /auth/callback, don't handle redirect here
+      if (referrer.includes("/auth/callback") || currentPath === "/auth/callback") {
+        console.log("🔵 [HOME] Skipping redirect - came from OAuth callback")
+        return
+      }
+      
+      // Only handle redirect if we're on the home page
+      if (currentPath !== "/") {
+        console.log("🔵 [HOME] Not on home page, skipping redirect")
+        return
+      }
+      
+      // Check URL parameter first, then localStorage
+      const redirectTo = searchParams.get("redirect") || 
+        (typeof window !== "undefined" ? localStorage.getItem("auth_redirect") : null)
+      
+      if (redirectTo) {
+        console.log("🔵 [HOME] Redirecting after login (non-OAuth):", redirectTo)
+        // Clear the stored redirect
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth_redirect")
+        }
+        // Redirect to the specified URL
+        router.replace(redirectTo)
+      }
+    }
+  }, [user, authLoading, searchParams, router])
 
   const [sessionName, setSessionName] = useState("")
   const [currency, setCurrency] = useState<"USD" | "ILS" | "EUR">("ILS")
@@ -230,7 +282,10 @@ export default function HomePage() {
               </p>
             </div>
             <Button
-              onClick={() => setShowCreateDialog(true)}
+              onClick={() => {
+                setSessionName(formatDateDDMMYYYY(new Date()))
+                setShowCreateDialog(true)
+              }}
               size="lg"
               className="gap-2 w-full sm:w-auto"
             >
@@ -244,7 +299,9 @@ export default function HomePage() {
             open={showCreateDialog} 
             onOpenChange={(open) => {
               setShowCreateDialog(open)
-              if (!open) {
+              if (open) {
+                setSessionName(formatDateDDMMYYYY(new Date()))
+              } else {
                 setCreateError(null)
               }
             }}
@@ -287,10 +344,14 @@ export default function HomePage() {
                         setSessionName(e.target.value)
                         if (createError) setCreateError(null)
                       }}
-                      placeholder="e.g., Friday Night Game"
+                      placeholder="DD-MM-YYYY"
                       className="h-12 md:h-10 text-base md:text-sm"
                       autoFocus={false}
+                      aria-describedby="session-name-hint"
                     />
+                    <p id="session-name-hint" className="text-xs text-muted-foreground">
+                      Pre-filled with today&apos;s date; you can change it if you like
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="currency" className="text-sm font-semibold block text-foreground">
@@ -465,7 +526,7 @@ export default function HomePage() {
                             {session.name}
                           </CardTitle>
                           <CardDescription className="mt-1">
-                            {new Date(session.createdAt).toLocaleDateString()}
+                            {formatDateDDMMYYYY(session.createdAt)}
                           </CardDescription>
                         </div>
                         <Badge

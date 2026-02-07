@@ -37,8 +37,8 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AppShell } from "@/components/layout/AppShell"
-import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight, MoreVertical, Lock } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight, MoreVertical, Lock, UserPlus } from "lucide-react"
+import { cn, formatDateDDMMYYYY } from "@/lib/utils"
 import { getCurrencySymbol, type CurrencyCode } from "@/lib/currency"
 import { BALANCE_TOLERANCE, COPY_FEEDBACK_DELAY_MS, CLOSE_DELAY_MS } from "@/lib/session/constants"
 import {
@@ -74,6 +74,7 @@ import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
 import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
 import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
 import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
+import { InvitePlayersDialog } from "@/components/session/InvitePlayersDialog"
 import { useSessionStage } from "@/hooks/useSessionStage"
 import { useLongPress } from "@/hooks/useLongPress"
 
@@ -106,6 +107,9 @@ export default function SessionPage() {
   const [isFinalizingSession, setIsFinalizingSession] = useState(false)
   const [showSettlementDetails, setShowSettlementDetails] = useState(false)
   const [showFinalizedDialog, setShowFinalizedDialog] = useState(false)
+  const [showInviteDialog, setShowInviteDialog] = useState(false)
+  const [inviteToken, setInviteToken] = useState<string | null>(null)
+  const [sessionReloadKey, setSessionReloadKey] = useState(0)
   const hasLoadedOnce = useRef(false)
 
   useEffect(() => {
@@ -169,6 +173,7 @@ export default function SessionPage() {
       setShowFixedBuyinDialog(false)
       setShowShareDialog(false)
       setShowLinkIdentityDialog(false)
+      setShowInviteDialog(false)
     }
   }, [isSidebarOpen])
 
@@ -253,6 +258,9 @@ export default function SessionPage() {
             finalizedAt: data.finalized_at || undefined,
             clubId: data.club_id, // Store for inserts
             chip_entry_started_at: data.chip_entry_started_at || undefined,
+            inviteEnabled: data.invite_enabled || false,
+            inviteTokenCreatedAt: data.invite_token_created_at || undefined,
+            inviteTokenRegeneratedAt: data.invite_token_regenerated_at || undefined,
           }
           
           // Immediately check if session belongs to active club
@@ -372,7 +380,7 @@ export default function SessionPage() {
     }
 
       loadSession()
-  }, [sessionId, isLoadingClubs, activeClubId, router])
+  }, [sessionId, isLoadingClubs, activeClubId, router, sessionReloadKey])
 
   // Stage engine hook
   const {
@@ -575,11 +583,7 @@ export default function SessionPage() {
     
     // Header with date and pot
     const sessionDate = new Date(session.finalizedAt || session.createdAt)
-    const dateStr = sessionDate.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    })
+    const dateStr = formatDateDDMMYYYY(sessionDate)
     
     lines.push(`🃏 Poker Night Results - ${dateStr} 🃏`)
     lines.push(`💰 Pot: ${getCurrencySymbol(session.currency)}${totalBuyins.toFixed(2)} (calculated by the total buy-ins in the game)`)
@@ -751,11 +755,11 @@ export default function SessionPage() {
                   <span className="hidden sm:inline">•</span>
                   <span className="hidden md:inline whitespace-nowrap">ID: {sessionId.slice(0, 8)}...</span>
                   <span className="hidden sm:inline">•</span>
-                  <span className="whitespace-nowrap">Created {new Date(session.createdAt).toLocaleDateString()}</span>
+                  <span className="whitespace-nowrap">Created {formatDateDDMMYYYY(session.createdAt)}</span>
                   {isFinalized && session.finalizedAt && (
                     <>
                       <span className="hidden sm:inline">•</span>
-                      <span className="whitespace-nowrap">Finalized {new Date(session.finalizedAt).toLocaleDateString()}</span>
+                      <span className="whitespace-nowrap">Finalized {formatDateDDMMYYYY(session.finalizedAt)}</span>
                     </>
                   )}
                 </div>
@@ -823,15 +827,29 @@ export default function SessionPage() {
             actions={
               <div className="hidden md:flex md:items-center md:gap-2">
                 {canEdit && (currentPhase === "active_game" || currentPhase === "finalized") && (
-                  <Button
-                    onClick={() => setEditingPlayerId("new")}
-                    size="sm"
-                    variant="default"
-                    className="gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Player
-                  </Button>
+                  <>
+                    <Button
+                      onClick={() => {
+                        console.log("🔵 [INVITE] Opening invite dialog (desktop)")
+                        setShowInviteDialog(true)
+                      }}
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                      Invite Players
+                    </Button>
+                    <Button
+                      onClick={() => setEditingPlayerId("new")}
+                      size="sm"
+                      variant="default"
+                      className="gap-2"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Player
+                    </Button>
+                  </>
                 )}
                 {canEdit && currentPhase === "active_game" && !hasCashouts && (
                   <div className="flex flex-col items-end gap-1">
@@ -1572,6 +1590,22 @@ export default function SessionPage() {
           />
         )}
 
+        {/* Invite Players Dialog */}
+        <InvitePlayersDialog
+          open={showInviteDialog}
+          onOpenChange={setShowInviteDialog}
+          sessionId={sessionId}
+          inviteEnabled={session?.inviteEnabled}
+          inviteTokenCreatedAt={session?.inviteTokenCreatedAt}
+          inviteTokenRegeneratedAt={session?.inviteTokenRegeneratedAt}
+          inviteToken={inviteToken}
+          onTokenGenerated={(token) => {
+            setInviteToken(token)
+            // Trigger session reload to get updated invite fields
+            setSessionReloadKey((prev) => prev + 1)
+          }}
+        />
+
         {/* Link Identity Confirmation Dialog */}
         {showLinkIdentityDialog && pendingPlayerId && (
           <Dialog 
@@ -1653,12 +1687,19 @@ export default function SessionPage() {
             {currentPhase === "active_game" ? (
               // Active game phase - show both buttons like desktop
               <div className="space-y-2">
-                {!canStartChipEntry && startChipEntryBlockedReason && (
-                  <p className="text-xs text-destructive text-center px-2">
-                    {startChipEntryBlockedReason}
-                  </p>
-                )}
                 <div className="flex gap-2">
+                  <Button
+                    onClick={() => {
+                      console.log("🔵 [INVITE] Opening invite dialog")
+                      setShowInviteDialog(true)
+                    }}
+                    size="lg"
+                    variant="outline"
+                    className="flex-1 gap-2 h-12 text-base font-medium"
+                  >
+                    <UserPlus className="h-5 w-5" />
+                    Invite
+                  </Button>
                   <Button
                     onClick={() => setEditingPlayerId("new")}
                     size="lg"
@@ -1669,15 +1710,22 @@ export default function SessionPage() {
                     Add Player
                   </Button>
                   {!hasCashouts && (
-                    <Button
-                      onClick={startChipEntry}
-                      size="lg"
-                      variant="outline"
-                      className="flex-1 h-12 text-base font-medium"
-                      disabled={!canStartChipEntry || isStartingChipEntry}
-                    >
-                      {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
-                    </Button>
+                    <div className="flex-1 flex flex-col">
+                      <Button
+                        onClick={startChipEntry}
+                        size="lg"
+                        variant="outline"
+                        className="flex-1 h-12 text-base font-medium"
+                        disabled={!canStartChipEntry || isStartingChipEntry}
+                      >
+                        {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
+                      </Button>
+                      {!canStartChipEntry && startChipEntryBlockedReason && (
+                        <p className="text-xs text-destructive text-center px-2 mt-1">
+                          {startChipEntryBlockedReason}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

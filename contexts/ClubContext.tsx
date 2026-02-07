@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react"
+import { createContext, useContext, useEffect, useState, useRef, ReactNode, useCallback } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { ClubWithMembership, Club } from "@/types/club"
 import { useAuth } from "./AuthContext"
@@ -33,6 +33,8 @@ export function ClubProvider({ children }: { children: ReactNode }) {
   const [activeClubId, setActiveClubId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Set when we've completed a fetch for the current user; prevents false "no clubs" before first load. */
+  const lastFetchedUserIdRef = useRef<string | null>(null)
 
   // Generate unique slug from name
   const generateSlug = useCallback((name: string): string => {
@@ -48,6 +50,7 @@ export function ClubProvider({ children }: { children: ReactNode }) {
   // Load user's clubs
   const loadClubs = useCallback(async () => {
     if (!user) {
+      lastFetchedUserIdRef.current = null
       setClubs([])
       setActiveClubState(null)
       setActiveClubId(null)
@@ -55,6 +58,7 @@ export function ClubProvider({ children }: { children: ReactNode }) {
       return
     }
 
+    setLoading(true)
     try {
       setError(null)
       const selectWithJoinCode = `
@@ -133,6 +137,7 @@ export function ClubProvider({ children }: { children: ReactNode }) {
         console.error("Error loading clubs:", logMsg)
         setError(errMessage || "Failed to load clubs")
         setClubs([])
+        lastFetchedUserIdRef.current = user.id
         setLoading(false)
         return
       }
@@ -142,6 +147,7 @@ export function ClubProvider({ children }: { children: ReactNode }) {
         setClubs([])
         setActiveClubState(null)
         setActiveClubId(null)
+        lastFetchedUserIdRef.current = user.id
         setLoading(false)
         return
       }
@@ -192,12 +198,14 @@ export function ClubProvider({ children }: { children: ReactNode }) {
         setActiveClubId(null)
       }
 
+      lastFetchedUserIdRef.current = user.id
       setLoading(false)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err ?? "Unknown error")
       console.error("Error loading clubs (unexpected):", msg)
       setError(msg)
       setClubs([])
+      lastFetchedUserIdRef.current = user.id
       setLoading(false)
     }
   }, [user])
@@ -464,7 +472,11 @@ export function ClubProvider({ children }: { children: ReactNode }) {
     loadClubs()
   }, [loadClubs])
 
-  const needsOnboarding = !!user && !loading && clubs.length === 0
+  const needsOnboarding =
+    !!user &&
+    !loading &&
+    clubs.length === 0 &&
+    lastFetchedUserIdRef.current === user.id
 
   return (
     <ClubContext.Provider

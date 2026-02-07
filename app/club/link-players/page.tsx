@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useClub } from "@/contexts/ClubContext"
+import { formatDateDDMMYYYY } from "@/lib/utils"
 import { Link2, Search, Loader2, UserPlus } from "lucide-react"
 
 type UnlinkedPlayer = { id: string; name: string; sessionId: string; sessionName: string; sessionDate: string }
@@ -152,7 +153,7 @@ export default function LinkPlayersPage() {
                         <TableRow key={player.id}>
                           <TableCell className="font-medium">{player.name}</TableCell>
                           <TableCell>{player.sessionName}</TableCell>
-                          <TableCell className="text-muted-foreground">{player.sessionDate ? new Date(player.sessionDate).toLocaleDateString() : "-"}</TableCell>
+                          <TableCell className="text-muted-foreground">{player.sessionDate ? formatDateDDMMYYYY(player.sessionDate) : "-"}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               {idx === 0 && group.length > 1 && (

@@ -30,6 +30,7 @@ interface LoginDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onClose?: () => void
+  redirectTo?: string // URL to redirect to after successful login
 }
 
 function GoogleIcon({ className }: { className?: string }) {
@@ -55,7 +56,7 @@ function GoogleIcon({ className }: { className?: string }) {
   )
 }
 
-export function LoginDialog({ open, onOpenChange, onClose }: LoginDialogProps) {
+export function LoginDialog({ open, onOpenChange, onClose, redirectTo }: LoginDialogProps) {
   const router = useRouter()
   const isDesktop = useIsDesktop()
   const { requestOtp, verifyOtp, signInWithGoogle } = useAuth()
@@ -148,11 +149,12 @@ export function LoginDialog({ open, onOpenChange, onClose }: LoginDialogProps) {
       setState("code")
     } else {
       setState("success")
-      // Hard redirect to Home so new users always land on Dashboard (or /join via OnboardingGuard)
+      // Redirect to specified URL or home page
+      const redirectUrl = redirectTo || "/"
       if (typeof window !== "undefined") {
-        window.location.replace("/")
+        window.location.replace(redirectUrl)
       } else {
-        router.replace("/")
+        router.replace(redirectUrl)
       }
     }
   }

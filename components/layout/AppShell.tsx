@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, Plus, ChevronDown, Copy, Check, UserCog, UserPlus, Link2 } from "lucide-react"
+import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, Plus, ChevronDown, Copy, Check, UserCog, UserPlus, Link2, Calculator } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
@@ -160,6 +160,11 @@ export function AppShell({ children }: AppShellProps) {
       href: "/sessions",
       label: "Sessions",
       icon: History,
+    },
+    {
+      href: "/tools/hands-chance",
+      label: "Hands Chance",
+      icon: Calculator,
     },
   ]
 
@@ -344,6 +349,7 @@ export function AppShell({ children }: AppShellProps) {
             const isActive = pathname === item.href || 
               (item.href === "/stats" && pathname?.startsWith("/stats")) ||
               (item.href === "/sessions" && pathname?.startsWith("/sessions")) ||
+              (item.href === "/tools/hands-chance" && pathname?.startsWith("/tools/hands-chance")) ||
               (item.href === "/" && pathname?.startsWith("/session"))
             
             return (

@@ -59,3 +59,24 @@
   .text-caption { font-size: 0.875rem; line-height: 1.25rem; }
   .text-fine { font-size: 0.75rem; line-height: 1rem; }
 }
+
+/* Hands Chance animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}

@@ -304,14 +304,55 @@ function AuthCallbackInner() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const goHome = useCallback(() => {
-    if (redirected.current) return
+    if (redirected.current) {
+      console.log("🔵 [CALLBACK] Already redirected, skipping")
+      return
+    }
     redirected.current = true
-    devLog("redirect", { to: "/" })
-    // Hard redirect to Home so new users always land on Dashboard (or /join via OnboardingGuard)
+    
+    // Check for stored redirect URL (from join page or other flows)
+    // Read it immediately and log all localStorage items for debugging
     if (typeof window !== "undefined") {
-      window.location.replace("/")
+      const allKeys = Object.keys(localStorage)
+      console.log("🔵 [CALLBACK] All localStorage keys:", allKeys)
+      const allAuthRedirects = allKeys.filter(k => k.includes("auth") || k.includes("redirect"))
+      console.log("🔵 [CALLBACK] Auth/redirect related keys:", allAuthRedirects.map(k => ({ key: k, value: localStorage.getItem(k) })))
+    }
+    
+    const storedRedirect = typeof window !== "undefined" ? localStorage.getItem("auth_redirect") : null
+    const redirectTo = storedRedirect || "/"
+    
+    console.log("🔵 [CALLBACK] Redirecting:", { 
+      to: redirectTo, 
+      hadStoredRedirect: !!storedRedirect,
+      storedRedirect,
+      willRedirectTo: redirectTo === "/" ? "HOME PAGE (no redirect found)" : redirectTo
+    })
+    
+    devLog("redirect", { to: redirectTo, hadStoredRedirect: !!storedRedirect })
+    
+    if (storedRedirect && typeof window !== "undefined") {
+      localStorage.removeItem("auth_redirect")
+      console.log("🔵 [CALLBACK] Cleared auth_redirect from localStorage")
+    }
+    
+    // Redirect to stored URL or Home
+    // Use window.location.replace for absolute redirect to ensure it works
+    if (typeof window !== "undefined") {
+      console.log("🔵 [CALLBACK] Using window.location.replace to:", redirectTo)
+      console.log("🔵 [CALLBACK] Full redirect URL:", window.location.origin + redirectTo)
+      
+      // Force redirect immediately
+      try {
+        window.location.replace(redirectTo)
+      } catch (err) {
+        console.error("🔴 [CALLBACK] Error during redirect:", err)
+        // Fallback: try router
+        router.replace(redirectTo)
+      }
     } else {
-      router.replace("/")
+      console.log("🔵 [CALLBACK] Using router.replace to:", redirectTo)
+      router.replace(redirectTo)
     }
   }, [router])
 
@@ -400,10 +441,18 @@ function AuthCallbackInner() {
       return false
     }
 
+    // Log initial state for debugging
+    if (typeof window !== "undefined") {
+      const initialRedirect = localStorage.getItem("auth_redirect")
+      console.log("🔵 [CALLBACK] Page loaded, initial auth_redirect:", initialRedirect)
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (redirected.current) return
       if (IS_DEV) devLog("getSession", { hasSession: !!session, userId: session?.user?.id })
+      console.log("🔵 [CALLBACK] getSession result:", { hasSession: !!session, userId: session?.user?.id })
       if (session) {
+        console.log("🔵 [CALLBACK] Session found, calling goHome()")
         clearTimer()
         goHome()
         return
@@ -437,6 +486,7 @@ function AuthCallbackInner() {
               return
             }
             devLog("exchange success", { userId: data.session?.user?.id })
+            console.log("🔵 [CALLBACK] Exchange success, calling goHome()")
             clearTimer()
             goHome()
           })

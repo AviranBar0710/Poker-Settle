@@ -30,6 +30,9 @@ yarn-error.log*
 # legacy CSV data (PII); keep locally for bulk-link script
 Legacy_Data/*.csv
 
+# sensitive scripts
+script.sh
+
 # vercel
 .vercel
 

@@ -1,11 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { LogIn } from "lucide-react"
 import { LoginDialog } from "@/components/LoginDialog"
 
 export function LoginGate() {
+  const searchParams = useSearchParams()
+  const redirectTo = searchParams.get("redirect") || undefined
   const [showLogin, setShowLogin] = useState(false)
 
   return (
@@ -36,6 +39,7 @@ export function LoginGate() {
       <LoginDialog
         open={showLogin}
         onOpenChange={setShowLogin}
+        redirectTo={redirectTo}
       />
     </div>
   )
