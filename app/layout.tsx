@@ -5,6 +5,7 @@ import { UIStateProvider } from "@/contexts/UIStateContext"
 import { ClubProvider } from "@/contexts/ClubContext"
 import { AuthGuard } from "@/components/AuthGuard"
 import { OnboardingGuard } from "@/components/OnboardingGuard"
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Poker Settlement App",
@@ -35,6 +36,7 @@ export default function RootLayout({
             </UIStateProvider>
           </ClubProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   )
