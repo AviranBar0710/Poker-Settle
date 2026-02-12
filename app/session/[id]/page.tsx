@@ -37,7 +37,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AppShell } from "@/components/layout/AppShell"
-import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, ArrowRight, MoreVertical, Lock, UserPlus } from "lucide-react"
+import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus, ArrowRight, MoreVertical, Lock, UserPlus, Trash2 } from "lucide-react"
 import { cn, formatDateDDMMYYYY } from "@/lib/utils"
 import { getCurrencySymbol, type CurrencyCode } from "@/lib/currency"
 import { BALANCE_TOLERANCE, COPY_FEEDBACK_DELAY_MS, CLOSE_DELAY_MS } from "@/lib/session/constants"
@@ -51,6 +51,7 @@ import {
   calculateSettlementTransfers,
   filterWinners,
   filterLosers,
+  filterBreakEven,
   sumWinnings,
   sumLosses,
 } from "@/lib/session/calculations"
@@ -597,19 +598,22 @@ function SessionPageInner() {
     lines.push(`💰 Pot: ${getCurrencySymbol(session.currency)}${totalBuyins.toFixed(2)} (calculated by the total buy-ins in the game)`)
     lines.push("")
     
-    // Final Standings: winners first (by pl DESC), then owes (by pl DESC = smallest loss first)
+    // Final Standings: winners first, then break-even, then losers. Include ALL players.
     lines.push("📊 Final Standings:")
     lines.push("-----------------------------------")
     
     const winnersSorted = [...winners].sort((a, b) => b.pl - a.pl)
+    const breakEvenSorted = [...breakEven]
     const losersSorted = [...losers].sort((a, b) => b.pl - a.pl)
-    const allPlayers = [...winnersSorted, ...losersSorted]
+    const allPlayers = [...winnersSorted, ...breakEvenSorted, ...losersSorted]
     
     allPlayers.forEach((result, index) => {
       const isWinner = result.pl > BALANCE_TOLERANCE
-      const emoji = isWinner ? "🏆" : "💸"
+      const isBreakEven = result.pl >= -BALANCE_TOLERANCE && result.pl <= BALANCE_TOLERANCE
+      const emoji = isWinner ? "🏆" : isBreakEven ? "➖" : "💸"
       const amount = Math.abs(result.pl)
-      lines.push(`${index + 1}. ${result.player.name} ${emoji} ${getCurrencySymbol(session.currency)}${amount.toFixed(2)}`)
+      const amountStr = isBreakEven ? "0.00" : amount.toFixed(2)
+      lines.push(`${index + 1}. ${result.player.name} ${emoji} ${getCurrencySymbol(session.currency)}${amountStr}`)
     })
     
     lines.push("")
@@ -673,6 +677,10 @@ function SessionPageInner() {
 
   const losers = useMemo(() => {
     return filterLosers(playerResults)
+  }, [playerResults])
+
+  const breakEven = useMemo(() => {
+    return filterBreakEven(playerResults)
   }, [playerResults])
 
   const totalWinnings = useMemo(() => {
@@ -805,7 +813,7 @@ function SessionPageInner() {
         </div>
 
         {/* Main Workspace - Table-Based Layout */}
-        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-32 md:pb-6 max-w-6xl space-y-6">
+        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-48 md:pb-6 max-w-6xl space-y-6">
           {/* Error Display */}
           {error && (
             <Alert className="mb-4 border-destructive bg-destructive/10 text-destructive">
@@ -920,7 +928,8 @@ function SessionPageInner() {
           />
           </div>
 
-          {/* Settlement Preview - Progressive: checklist + View settlement, then Settlement Summary + Who Pays Whom */}
+          {/* Settlement Preview - Progressive: checklist + View settlement, then Settlement Summary + Who Pays Whom. Hidden in active_game phase - only shown after chip entry starts. */}
+          {currentPhase !== "active_game" && (
           <div className="mt-6" data-settlement-preview>
           {!hasCashouts ? (
             <Card className="shadow-sm">
@@ -963,7 +972,7 @@ function SessionPageInner() {
               <Button
                 onClick={() => setShowSettlementDetails(true)}
                 size="lg"
-                className="w-full min-h-[48px] text-base font-semibold"
+                className="w-full min-h-[48px] text-base font-semibold hidden md:flex"
               >
                 View settlement
               </Button>
@@ -1027,6 +1036,60 @@ function SessionPageInner() {
                                 +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Winnings</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Break-even Section */}
+                  {breakEven.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Minus className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="text-sm font-semibold text-muted-foreground">
+                          Break-even ({breakEven.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-2 md:space-y-2">
+                        {breakEven.map((result) => (
+                          <div
+                            key={result.player.id}
+                            className="p-3 md:p-3 bg-muted/50 rounded-lg border border-border"
+                          >
+                            <div className="md:hidden space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="font-semibold text-base text-foreground">{result.player.name}</p>
+                                <p className="text-lg font-bold font-mono text-muted-foreground">
+                                  {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-border/50">
+                                <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
+                                <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
+                              </div>
+                            </div>
+                            <div className="hidden md:flex items-center justify-between">
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-muted-foreground font-semibold text-sm">
+                                  {result.player.name[0].toUpperCase()}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-medium text-sm">{result.player.name}</p>
+                                  <div className="flex items-center gap-3 text-xs text-muted-foreground mt-1">
+                                    <span>Buy-in {getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span>
+                                    <span>•</span>
+                                    <span>Final {getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-semibold text-muted-foreground">
+                                  {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Break-even</p>
                               </div>
                             </div>
                           </div>
@@ -1185,6 +1248,7 @@ function SessionPageInner() {
             </div>
           )}
           </div>
+          )}
 
           {/* Balance Warning (if needed) */}
           {hasCashouts && totalsDontBalance && (
@@ -1195,19 +1259,10 @@ function SessionPageInner() {
             </Alert>
           )}
 
-          {/* Global Actions - Desktop only, mobile actions in sticky footer */}
+          {/* Global Actions - Desktop only, mobile actions in sticky footer. View settlement lives in Settlement Preview above. */}
           <div className="hidden md:flex md:justify-end pt-4 border-t">
             {!isFinalized ? (
               <>
-                {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
-                  <Button 
-                    onClick={() => setShowSettlementDetails(true)}
-                    size="lg" 
-                    className="min-w-[160px]"
-                  >
-                    View settlement
-                  </Button>
-                )}
                 {canEdit && currentPhase === "ready_to_finalize" && showSettlementDetails && (
                   <Button 
                     onClick={handleFinalizeSession} 
@@ -1283,7 +1338,7 @@ function SessionPageInner() {
 
           {/* Mobile: Sticky Footer for Global Actions - show when finalized (Share etc) or when phase actions available */}
           {(hasCashouts || (canEdit && currentPhase === "chip_entry")) && (isFinalized || canEdit || (currentPhase === "ready_to_finalize" && !showSettlementDetails)) && (
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg">
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))] shadow-lg">
               {!isFinalized ? (
                 <>
                   {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
@@ -1691,9 +1746,9 @@ function SessionPageInner() {
 
         {/* Mobile: Sticky Footer for Primary Actions - Add Player, Start Chip Entry (owner/admin only) */}
         {canEdit && !isFinalized && currentPhase !== "ready_to_finalize" && !(hasCashouts && currentPhase === "chip_entry") && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-lg">
+          <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))] shadow-lg">
             {currentPhase === "active_game" ? (
-              // Active game phase - show both buttons like desktop
+              // Active game phase - 2 rows so all buttons fit on narrow screens
               <div className="space-y-2">
                 <div className="flex gap-2">
                   <Button
@@ -1703,39 +1758,39 @@ function SessionPageInner() {
                     }}
                     size="lg"
                     variant="outline"
-                    className="flex-1 gap-2 h-12 text-base font-medium"
+                    className="flex-1 gap-2 h-12 text-base font-medium min-w-0"
                   >
-                    <UserPlus className="h-5 w-5" />
+                    <UserPlus className="h-5 w-5 shrink-0" />
                     Invite
                   </Button>
                   <Button
                     onClick={() => setEditingPlayerId("new")}
                     size="lg"
                     variant="default"
-                    className="flex-1 gap-2 h-12 text-base font-medium"
+                    className="flex-1 gap-2 h-12 text-base font-medium min-w-0"
                   >
-                    <Plus className="h-5 w-5" />
+                    <Plus className="h-5 w-5 shrink-0" />
                     Add Player
                   </Button>
-                  {!hasCashouts && (
-                    <div className="flex-1 flex flex-col">
-                      <Button
-                        onClick={startChipEntry}
-                        size="lg"
-                        variant="outline"
-                        className="flex-1 h-12 text-base font-medium"
-                        disabled={!canStartChipEntry || isStartingChipEntry}
-                      >
-                        {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
-                      </Button>
-                      {!canStartChipEntry && startChipEntryBlockedReason && (
-                        <p className="text-xs text-destructive text-center px-2 mt-1">
-                          {startChipEntryBlockedReason}
-                        </p>
-                      )}
-                    </div>
-                  )}
                 </div>
+                {!hasCashouts && (
+                  <div className="w-full">
+                    <Button
+                      onClick={startChipEntry}
+                      size="lg"
+                      variant="outline"
+                      className="w-full h-12 text-base font-medium"
+                      disabled={!canStartChipEntry || isStartingChipEntry}
+                    >
+                      {isStartingChipEntry ? "Starting..." : "Start Chip Entry"}
+                    </Button>
+                    {!canStartChipEntry && startChipEntryBlockedReason && (
+                      <p className="text-xs text-destructive text-center px-2 mt-1">
+                        {startChipEntryBlockedReason}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             ) : null}
           </div>
@@ -2771,6 +2826,30 @@ function EditPlayerDialog({
     }
   }
 
+  const handleDeleteBuyin = async (buyin: Transaction) => {
+    if (!window.confirm(`Delete buy-in of ${currency} ${buyin.amount.toFixed(2)}?`)) return
+
+    setPlayerError(null)
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", buyin.id)
+
+      if (error) {
+        console.error("Error deleting buy-in:", error)
+        setPlayerError(`Failed to delete buy-in: ${error.message}`)
+      } else {
+        setEditingBuyinId(null)
+        setEditBuyinAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error deleting buy-in:", err)
+      setPlayerError("Failed to delete buy-in. Please try again.")
+    }
+  }
+
   // Handle adding buy-in (reusing logic from PlayerBuyinForm)
   // Core function to add buy-in (can be called from form or handleSave)
   const addBuyinTransaction = async (amount: number): Promise<boolean> => {
@@ -3026,6 +3105,7 @@ function EditPlayerDialog({
                         <>
                           <Input
                             type="number"
+                            inputMode="decimal"
                             value={editBuyinAmount}
                             onChange={(e) => setEditBuyinAmount(e.target.value)}
                             onKeyDown={(e) => {
@@ -3058,6 +3138,16 @@ function EditPlayerDialog({
                           >
                             <X className="h-3 w-3" />
                           </Button>
+                          <Button
+                            onClick={() => handleDeleteBuyin(buyin)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingBuyinEdit}
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete buy-in"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
                         </>
                       ) : (
                         <>
@@ -3069,6 +3159,15 @@ function EditPlayerDialog({
                             className="h-8 px-2"
                           >
                             <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteBuyin(buyin)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete buy-in"
+                          >
+                            <Trash2 className="h-3 w-3" />
                           </Button>
                         </>
                       )}
@@ -3083,6 +3182,7 @@ function EditPlayerDialog({
                   <span className="text-sm font-medium w-24">Add Buy-in</span>
                   <Input
                     type="number"
+                    inputMode="decimal"
                     placeholder="Amount"
                     value={buyinAmount}
                     onChange={(e) => setBuyinAmount(e.target.value)}
@@ -3122,6 +3222,7 @@ function EditPlayerDialog({
                     <span className="text-sm font-medium w-24">Add Cash-out</span>
                     <Input
                       type="number"
+                      inputMode="decimal"
                       placeholder="Final chip count"
                       value={cashoutAmount}
                       onChange={(e) => setCashoutAmount(e.target.value)}
@@ -3261,6 +3362,7 @@ function FixedBuyinDialog({
           <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 md:flex-none md:min-h-auto md:overflow-visible md:p-0 md:py-4">
           <Input
             type="number"
+            inputMode="decimal"
             placeholder={`Amount (${currency})`}
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
@@ -3559,6 +3661,27 @@ function PlayerBuyinForm({
     setIsSavingEdit(false)
   }
 
+  const handleDeleteBuyin = async (buyin: Transaction) => {
+    if (!window.confirm(`Delete buy-in of ${currency} ${buyin.amount.toFixed(2)}?`)) return
+
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", buyin.id)
+
+      if (error) {
+        console.error("Error deleting buy-in:", error)
+      } else {
+        setEditingBuyinId(null)
+        setEditAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error deleting buy-in:", err)
+    }
+  }
+
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString()
   }
@@ -3576,6 +3699,7 @@ function PlayerBuyinForm({
         <form onSubmit={handleAddBuyin} className="flex gap-2">
           <Input
             type="number"
+            inputMode="decimal"
             placeholder="Amount"
             value={buyinAmount}
             onChange={(e) => setBuyinAmount(e.target.value)}
@@ -3618,6 +3742,7 @@ function PlayerBuyinForm({
                       <div className="flex items-center gap-2 flex-1">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
                           min="0.01"
@@ -3648,6 +3773,18 @@ function PlayerBuyinForm({
                         >
                           <X className="h-3 w-3" />
                         </Button>
+                        {!isFinalized && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteBuyin(buyin)}
+                            disabled={isSavingEdit}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            title="Delete buy-in"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        )}
                       </div>
                     </>
                   ) : (
@@ -3661,14 +3798,25 @@ function PlayerBuyinForm({
                         </span>
                       </div>
                       {!isFinalized && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleStartEdit(buyin)}
-                          className="h-7 px-2"
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleStartEdit(buyin)}
+                            className="h-7 px-2"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteBuyin(buyin)}
+                            className="h-7 px-2 text-destructive hover:text-destructive"
+                            title="Delete buy-in"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       )}
                     </>
                   )}
@@ -3869,6 +4017,7 @@ function PlayerCashoutForm({
         <form onSubmit={handleAddCashout} className="flex gap-2">
           <Input
             type="number"
+            inputMode="decimal"
             placeholder="Amount (0 allowed)"
             value={cashoutAmount}
             onChange={(e) => setCashoutAmount(e.target.value)}
@@ -3911,6 +4060,7 @@ function PlayerCashoutForm({
                       <div className="flex items-center gap-2 flex-1">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
                           min="0"

@@ -221,6 +221,15 @@ export function filterLosers(playerResults: PlayerResult[]): PlayerResult[] {
 }
 
 /**
+ * Filter player results to get break-even players (P/L within tolerance).
+ */
+export function filterBreakEven(playerResults: PlayerResult[]): PlayerResult[] {
+  return playerResults.filter(
+    (r) => r.pl >= -BALANCE_TOLERANCE && r.pl <= BALANCE_TOLERANCE
+  )
+}
+
+/**
  * Sum total winnings from winners array.
  */
 export function sumWinnings(winners: PlayerResult[]): number {

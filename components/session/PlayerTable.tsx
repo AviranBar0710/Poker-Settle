@@ -233,6 +233,7 @@ function PlayerRow({
                       <form onSubmit={handleAddBuyin} className="space-y-2">
                         <Input
                           type="number"
+                          inputMode="decimal"
                           placeholder="Amount"
                           value={buyinAmount}
                           onChange={(e) => setBuyinAmount(e.target.value)}
@@ -285,6 +286,7 @@ function PlayerRow({
                       >
                         <Input
                           type="number"
+                          inputMode="decimal"
                           placeholder="Amount"
                           value={cashoutAmount}
                           onChange={(e) => setCashoutAmount(e.target.value)}
