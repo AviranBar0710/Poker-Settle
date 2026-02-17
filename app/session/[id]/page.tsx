@@ -943,7 +943,7 @@ function SessionPageInner() {
                 </CardDescription>
               </CardHeader>
             </Card>
-          ) : !showSettlementDetails ? (
+          ) : !isFinalized && !showSettlementDetails ? (
             <div className="space-y-4">
               <FinalizationChecklist
                 items={[
@@ -2374,6 +2374,8 @@ function MobilePlayerCard({
       )
     : null
 
+  const sym = getCurrencySymbol(currency as CurrencyCode)
+
   return (
     <Card
       className={cn(
@@ -2385,40 +2387,89 @@ function MobilePlayerCard({
         onClick: () => isEditable && onRowClick(result.player.id),
       })}
     >
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between gap-4">
+      <CardContent className="p-5 space-y-3">
+        {/* Row 1: Name + (You) + 3-dots */}
+        <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="font-semibold text-lg truncate">{result.player.name}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="font-semibold text-lg break-words">{result.player.name}</p>
               {user && result.player.profileId === user.id && (
                 <span className="text-xs text-muted-foreground shrink-0">(You)</span>
               )}
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {result.totalBuyins > 0
-                ? `${getCurrencySymbol(currency as import("@/lib/currency").CurrencyCode)}${result.totalBuyins.toFixed(2)} buy-ins${showCashouts ? ` · ${getCurrencySymbol(currency as import("@/lib/currency").CurrencyCode)}${result.totalCashouts.toFixed(2)} cash-outs` : ""}`
-                : "No buy-in yet"}
-            </p>
           </div>
-          <div className="text-right shrink-0 flex items-center gap-1">
-            <p className={cn("text-2xl font-bold font-mono whitespace-nowrap", plColor)}>
-              {showPL ? `${result.pl > 0 ? "+" : ""}${getCurrencySymbol(currency as CurrencyCode)}${result.pl.toFixed(2)}` : "—"}
-            </p>
-            {!isMissingBuyin && result.totalBuyins > 0 && (
-              <Check className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
-            )}
-          </div>
-        </div>
-        {user && !result.player.profileId && !userAlreadyLinked && (
-          <div className="mt-3 pt-3 border-t" onClick={(e) => e.stopPropagation()}>
+          {onRowLongPress && (
             <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-11 min-w-11 shrink-0"
+              aria-label="More actions"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onRowLongPress(result.player.id)
+              }}
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseUp={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {/* Row 2: Stats - buy-in only (active_game) or buy-in + cash-out (chip_entry+) */}
+        <p className="text-sm text-muted-foreground">
+          {result.totalBuyins > 0 ? (
+            showCashouts ? (
+              <>Buy {sym}{result.totalBuyins.toFixed(0)} · Out {sym}{result.totalCashouts.toFixed(0)}</>
+            ) : (
+              <>Buy {sym}{result.totalBuyins.toFixed(0)}</>
+            )
+          ) : (
+            "No buy-in yet"
+          )}
+        </p>
+
+        {/* Row 3: P/L prominent */}
+        <div className="flex items-center justify-end gap-1">
+          <p className={cn("text-2xl font-bold font-mono whitespace-nowrap", plColor)}>
+            {showPL ? `${result.pl > 0 ? "+" : ""}${sym}${result.pl.toFixed(2)}` : "—"}
+          </p>
+          {!isMissingBuyin && result.totalBuyins > 0 && (
+            <Check className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
+          )}
+        </div>
+
+        {/* Row 4: This is me (when applicable) */}
+        {user && !result.player.profileId && !userAlreadyLinked && (
+          <div
+            className="mt-4 pt-3 border-t"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseUp={(e) => e.stopPropagation()}
+          >
+            <Button
+              type="button"
               variant="outline"
               size="sm"
               onClick={(e) => {
+                e.preventDefault()
                 e.stopPropagation()
                 onLinkIdentity(result.player.id)
               }}
-              className="h-9 text-xs"
+              onPointerDown={(e) => e.stopPropagation()}
+              onTouchStart={(e) => e.stopPropagation()}
+              onTouchEnd={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+              onMouseUp={(e) => e.stopPropagation()}
+              className="h-9 text-xs w-full"
             >
               This is me
             </Button>
@@ -2618,9 +2669,11 @@ function PlayersTable({
                             <div className="flex items-center justify-end gap-2">
                               {user && !result.player.profileId && !userAlreadyLinked && (
                                 <Button
+                                  type="button"
                                   variant="outline"
                                   size="sm"
                                   onClick={(e) => {
+                                    e.preventDefault()
                                     e.stopPropagation()
                                     onLinkIdentity(result.player.id)
                                   }}

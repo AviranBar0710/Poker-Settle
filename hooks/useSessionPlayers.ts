@@ -278,12 +278,6 @@ export function useSessionPlayers({
       return
     }
 
-    // Check if session is finalized
-    if (session?.finalizedAt) {
-      setError("Cannot link identity to a finalized session")
-      return
-    }
-
     // Check if player is already linked
     const player = players.find((p) => p.id === playerId)
     if (player?.profileId) {
@@ -332,16 +326,22 @@ export function useSessionPlayers({
     }
 
     try {
-      const { error: linkError } = await supabase
+      const { data, error: linkError } = await supabase
         .from("players")
         .update({ profile_id: user.id })
         .eq("id", pendingPlayerId)
         .eq("session_id", sessionId)
         .is("profile_id", null) // Only update if profile_id is null
+        .select("id")
 
       if (linkError) {
         console.error("Error linking identity:", linkError)
         setError(`Failed to link identity: ${linkError.message}`)
+        return
+      }
+
+      if (!data || data.length === 0) {
+        setError("Could not link identity. The player may already be linked or you may not have permission.")
         return
       }
 

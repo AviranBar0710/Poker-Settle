@@ -119,7 +119,6 @@ function HomePageInner() {
           .select("*")
           .eq("club_id", activeClubId)
           .order("created_at", { ascending: false })
-          .limit(10)
 
         if (error) {
           const err = error as { message?: string; details?: string; hint?: string; code?: string }
