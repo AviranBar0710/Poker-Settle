@@ -63,10 +63,10 @@ export function calculateOdds(
     }
 
     return { results: mappedResults, error: null }
-  } catch (err) {
+  } catch {
     return {
       results: [],
-      error: err instanceof Error ? err.message : "Failed to calculate odds",
+      error: null,
     }
   }
 }

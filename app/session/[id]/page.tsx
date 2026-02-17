@@ -2387,23 +2387,21 @@ function MobilePlayerCard({
         onClick: () => isEditable && onRowClick(result.player.id),
       })}
     >
-      <CardContent className="p-5 space-y-3">
-        {/* Row 1: Name + (You) + 3-dots */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="font-semibold text-lg break-words">{result.player.name}</p>
-              {user && result.player.profileId === user.id && (
-                <span className="text-xs text-muted-foreground shrink-0">(You)</span>
-              )}
-            </div>
+      <CardContent className="px-3 py-2.5 space-y-0.5">
+        {/* Row 1: Name + (You) left, 3-dots right */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="font-semibold text-base truncate">{result.player.name}</p>
+            {user && result.player.profileId === user.id && (
+              <span className="text-xs text-muted-foreground shrink-0">(You)</span>
+            )}
           </div>
           {onRowLongPress && (
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="h-11 min-w-11 shrink-0"
+              className="h-8 min-w-8 shrink-0 -mr-1"
               aria-label="More actions"
               onClick={(e) => {
                 e.preventDefault()
@@ -2421,33 +2419,33 @@ function MobilePlayerCard({
           )}
         </div>
 
-        {/* Row 2: Stats - buy-in only (active_game) or buy-in + cash-out (chip_entry+) */}
-        <p className="text-sm text-muted-foreground">
-          {result.totalBuyins > 0 ? (
-            showCashouts ? (
-              <>Buy {sym}{result.totalBuyins.toFixed(0)} · Out {sym}{result.totalCashouts.toFixed(0)}</>
+        {/* Row 2: Buy-in stats (left) + P/L + status (right) */}
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {result.totalBuyins > 0 ? (
+              showCashouts ? (
+                <>Buy {sym}{result.totalBuyins.toFixed(0)} · Out {sym}{result.totalCashouts.toFixed(0)}</>
+              ) : (
+                <>Buy {sym}{result.totalBuyins.toFixed(0)}</>
+              )
             ) : (
-              <>Buy {sym}{result.totalBuyins.toFixed(0)}</>
-            )
-          ) : (
-            "No buy-in yet"
-          )}
-        </p>
-
-        {/* Row 3: P/L prominent */}
-        <div className="flex items-center justify-end gap-1">
-          <p className={cn("text-2xl font-bold font-mono whitespace-nowrap", plColor)}>
-            {showPL ? `${result.pl > 0 ? "+" : ""}${sym}${result.pl.toFixed(2)}` : "—"}
-          </p>
-          {!isMissingBuyin && result.totalBuyins > 0 && (
-            <Check className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
-          )}
+              "No buy-in yet"
+            )}
+          </span>
+          <div className="flex items-center gap-1 shrink-0">
+            <span className={cn("text-base font-semibold font-mono whitespace-nowrap", plColor)}>
+              {showPL ? `${result.pl > 0 ? "+" : ""}${sym}${result.pl.toFixed(2)}` : "—"}
+            </span>
+            {!isMissingBuyin && result.totalBuyins > 0 && (
+              <Check className="h-4 w-4 text-green-600 dark:text-green-500 shrink-0" />
+            )}
+          </div>
         </div>
 
-        {/* Row 4: This is me (when applicable) */}
+        {/* Row 2: This is me (only when applicable) */}
         {user && !result.player.profileId && !userAlreadyLinked && (
           <div
-            className="mt-4 pt-3 border-t"
+            className="mt-1 pt-1.5 border-t"
             onClick={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
@@ -2576,7 +2574,7 @@ function PlayersTable({
       ) : (
         <>
           {/* Mobile: Card List View */}
-          <div className="md:hidden space-y-3 pb-4">
+          <div className="md:hidden space-y-2 pb-4">
             {playerResults.map((result) => {
               const { showCashouts, showPL, isEditable } = getPhaseDisplay(result)
               const plColor = getPLColor(result.pl, showPL)

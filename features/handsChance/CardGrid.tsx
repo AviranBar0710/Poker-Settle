@@ -1,62 +1,66 @@
+"use client"
+
+import { useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { normalizeCard } from "./utils"
+import { PokerCard } from "./Card"
 import type { SelectedSlot } from "./types"
 
 interface CardGridProps {
   selectedSlot: SelectedSlot
   isCardUsed: (card: string) => boolean
   onCardSelect: (card: string) => void
+  isSelectorFocused?: boolean
 }
 
-const ranks = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"]
-const suits = ["h", "d", "c", "s"]
+const RANKS = ["A", "K", "Q", "J", "T", "9", "8", "7", "6", "5", "4", "3", "2"]
+const SUITS = ["h", "d", "c", "s"]
 
-export function CardGrid({ selectedSlot, isCardUsed, onCardSelect }: CardGridProps) {
-  const suitLabels: Record<string, string> = {
-    h: "♥",
-    d: "♦",
-    c: "♣",
-    s: "♠",
-  }
-  const suitColors: Record<string, string> = {
-    h: "text-red-600",
-    d: "text-red-600",
-    c: "text-black dark:text-white",
-    s: "text-black dark:text-white",
-  }
+export function CardGrid({
+  selectedSlot,
+  isCardUsed,
+  onCardSelect,
+  isSelectorFocused = true,
+}: CardGridProps) {
+  const gridRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (isSelectorFocused && selectedSlot && gridRef.current) {
+      gridRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" })
+    }
+  }, [isSelectorFocused, selectedSlot])
 
   return (
+    <div ref={gridRef}>
     <Card>
       <CardHeader>
         <CardTitle>Select Card</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {suits.map((suit) => (
+          {SUITS.map((suit) => (
             <div key={suit} className="flex gap-2 overflow-x-auto pb-2">
-              {ranks.map((rank) => {
+              {RANKS.map((rank) => {
                 const card = rank + suit
                 const used = isCardUsed(card)
+                const isClickable = selectedSlot || used
+                const cardState = used
+                  ? "assigned"
+                  : selectedSlot
+                    ? "default"
+                    : "disabled"
 
                 return (
                   <button
                     key={card}
                     onClick={() => onCardSelect(card)}
-                    disabled={!selectedSlot && !used}
-                    className={`min-w-[48px] h-14 rounded-lg border-2 transition-all flex-shrink-0 ${
-                      used
-                        ? selectedSlot
-                          ? "opacity-60 border-primary bg-primary/10 hover:bg-primary/20 cursor-pointer"
-                          : "opacity-40 border-muted-foreground/20 bg-muted/10 hover:bg-muted/20 cursor-pointer"
-                        : selectedSlot
-                          ? "border-primary bg-primary/10 hover:bg-primary/20 cursor-pointer"
-                          : "border-muted-foreground/30 bg-muted/20 opacity-50 cursor-not-allowed"
-                    } flex flex-col items-center justify-center`}
+                    disabled={!isClickable}
+                    className="flex-shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-lg"
                   >
-                    <span className={`font-mono font-bold text-xs ${suitColors[suit]}`}>
-                      {rank}
-                    </span>
-                    <span className={`text-lg ${suitColors[suit]}`}>{suitLabels[suit]}</span>
+                    <PokerCard
+                      card={card}
+                      variant="normal"
+                      state={cardState}
+                    />
                   </button>
                 )
               })}
@@ -70,5 +74,6 @@ export function CardGrid({ selectedSlot, isCardUsed, onCardSelect }: CardGridPro
         )}
       </CardContent>
     </Card>
+    </div>
   )
 }

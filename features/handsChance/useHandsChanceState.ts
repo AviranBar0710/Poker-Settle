@@ -1,10 +1,15 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { normalizeCard } from "./utils"
+import { calculateOdds, canCalculate } from "./oddsCalc"
 import type { SelectedSlot, PlayerResult } from "./types"
 
+const INITIAL_PLAYER_SLOT: SelectedSlot = { type: "player", playerIndex: 0, cardIndex: 0 }
+
 export function useHandsChanceState() {
-  // 4 players, each with 2 cards
+  // 6 players, each with 2 cards
   const [players, setPlayers] = useState<string[][]>([
+    ["", ""],
+    ["", ""],
     ["", ""],
     ["", ""],
     ["", ""],
@@ -14,13 +19,24 @@ export function useHandsChanceState() {
   // Board: 5 cards (flop, turn, river)
   const [board, setBoard] = useState<string[]>(["", "", "", "", ""])
 
-  // Selected slot for card assignment
-  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>(null)
+  // Selected slot for card assignment - auto-select Player 1 on mount for immediate card entry
+  const [selectedSlot, setSelectedSlot] = useState<SelectedSlot>(INITIAL_PLAYER_SLOT)
 
-  // Results
+  // Results - auto-calculated on players/board change
   const [results, setResults] = useState<PlayerResult[]>([])
-  const [isCalculating, setIsCalculating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Auto odds: recalculate whenever players or board changes
+  useEffect(() => {
+    if (!canCalculate(players)) {
+      setResults([])
+      setError(null)
+      return
+    }
+    const { results: r, error: e } = calculateOdds(players, board)
+    setError(e)
+    setResults(r ?? [])
+  }, [players, board])
 
   // Get all used cards
   const getUsedCards = (): string[] => {
@@ -45,32 +61,6 @@ export function useHandsChanceState() {
     const normalized = normalizeCard(card)
     const used = getUsedCards()
     return used.some((usedCard) => normalizeCard(usedCard) === normalized)
-  }
-
-  // Remove card from its current location
-  const removeCard = (card: string) => {
-    const normalized = normalizeCard(card)
-    // Remove from players
-    for (let i = 0; i < players.length; i++) {
-      for (let j = 0; j < players[i].length; j++) {
-        if (normalizeCard(players[i][j]) === normalized) {
-          const newPlayers = [...players]
-          newPlayers[i] = [...newPlayers[i]]
-          newPlayers[i][j] = ""
-          setPlayers(newPlayers)
-          return
-        }
-      }
-    }
-    // Remove from board
-    for (let i = 0; i < board.length; i++) {
-      if (normalizeCard(board[i]) === normalized) {
-        const newBoard = [...board]
-        newBoard[i] = ""
-        setBoard(newBoard)
-        return
-      }
-    }
   }
 
   // Find next empty player slot
@@ -113,49 +103,12 @@ export function useHandsChanceState() {
   // Handle card selection from grid
   const handleCardSelect = (card: string) => {
     const normalized = normalizeCard(card)
-    const used = isCardUsed(card)
 
-    // If card is used and no slot selected, remove it
-    if (used && !selectedSlot) {
-      removeCard(card)
-      setError(null)
-      return
-    }
+    // If card is already used, ignore (picker disables used cards)
+    if (isCardUsed(card)) return
 
-    // If no slot selected and card not used, do nothing
-    if (!selectedSlot) {
-      return
-    }
-
-    // Check if card is already in the selected slot
-    let currentCard = ""
-    if (selectedSlot.type === "player") {
-      currentCard = players[selectedSlot.playerIndex][selectedSlot.cardIndex]
-    } else {
-      currentCard = board[selectedSlot.index]
-    }
-
-    // If clicking the same card in the slot, remove it
-    if (normalizeCard(currentCard) === normalized) {
-      if (selectedSlot.type === "player") {
-        const newPlayers = [...players]
-        newPlayers[selectedSlot.playerIndex] = [...newPlayers[selectedSlot.playerIndex]]
-        newPlayers[selectedSlot.playerIndex][selectedSlot.cardIndex] = ""
-        setPlayers(newPlayers)
-      } else {
-        const newBoard = [...board]
-        newBoard[selectedSlot.index] = ""
-        setBoard(newBoard)
-      }
-      setSelectedSlot(null)
-      setError(null)
-      return
-    }
-
-    // If card is used elsewhere, remove it from old location first
-    if (used) {
-      removeCard(card)
-    }
+    // If no slot selected, do nothing
+    if (!selectedSlot) return
 
     // Assign card to selected slot
     if (selectedSlot.type === "player") {
@@ -163,10 +116,22 @@ export function useHandsChanceState() {
       newPlayers[selectedSlot.playerIndex] = [...newPlayers[selectedSlot.playerIndex]]
       newPlayers[selectedSlot.playerIndex][selectedSlot.cardIndex] = normalized
       setPlayers(newPlayers)
-      
-      // Auto-advance to next empty player slot
-      const nextSlot = findNextEmptyPlayerSlot(selectedSlot.playerIndex, selectedSlot.cardIndex)
-      setSelectedSlot(nextSlot)
+
+      // After 2 players filled, focus community cards
+      const filledPlayerCount = newPlayers.filter(
+        (p) => (p[0]?.length ?? 0) >= 2 && (p[1]?.length ?? 0) >= 2
+      ).length
+
+      let nextSlot: SelectedSlot | null
+      if (filledPlayerCount >= 2) {
+        nextSlot = findNextEmptyBoardSlot(-1)
+      } else {
+        nextSlot = findNextEmptyPlayerSlot(selectedSlot.playerIndex, selectedSlot.cardIndex)
+        if (!nextSlot) {
+          nextSlot = findNextEmptyBoardSlot(-1)
+        }
+      }
+      setSelectedSlot(nextSlot ?? null)
     } else {
       const newBoard = [...board]
       newBoard[selectedSlot.index] = normalized
@@ -195,18 +160,51 @@ export function useHandsChanceState() {
     setError(null)
   }
 
-  // Handle slot click
+  // Handle slot click - if clicking the already-selected slot that has a card, clear it
   const handleSlotClick = (slot: SelectedSlot) => {
+    if (!slot) { setSelectedSlot(null); return }
+
+    const isAlreadySelected =
+      selectedSlot &&
+      ((slot.type === "player" &&
+        selectedSlot.type === "player" &&
+        selectedSlot.playerIndex === slot.playerIndex &&
+        selectedSlot.cardIndex === slot.cardIndex) ||
+        (slot.type === "board" &&
+          selectedSlot.type === "board" &&
+          selectedSlot.index === slot.index))
+
+    if (isAlreadySelected) {
+      // Clear the card from this slot
+      if (slot.type === "player") {
+        const card = players[slot.playerIndex][slot.cardIndex]
+        if (card && card.length >= 2) {
+          const newPlayers = [...players]
+          newPlayers[slot.playerIndex] = [...newPlayers[slot.playerIndex]]
+          newPlayers[slot.playerIndex][slot.cardIndex] = ""
+          setPlayers(newPlayers)
+        }
+      } else if (slot.type === "board") {
+        const card = board[slot.index]
+        if (card && card.length >= 2) {
+          const newBoard = [...board]
+          newBoard[slot.index] = ""
+          setBoard(newBoard)
+        }
+      }
+      return
+    }
+
     setSelectedSlot(slot)
     setError(null)
   }
 
-  // Reset all data
+  // Reset all data - auto-select Player 1 slot 0 for immediate card entry
   const handleReset = () => {
-    setPlayers([["", ""], ["", ""], ["", ""], ["", ""]])
+    setPlayers([["", ""], ["", ""], ["", ""], ["", ""], ["", ""], ["", ""]])
     setBoard(["", "", "", "", ""])
     setResults([])
-    setSelectedSlot(null)
+    setSelectedSlot(INITIAL_PLAYER_SLOT)
     setError(null)
   }
 
@@ -215,10 +213,7 @@ export function useHandsChanceState() {
     board,
     selectedSlot,
     results,
-    isCalculating,
     error,
-    setResults,
-    setIsCalculating,
     setError,
     isCardUsed,
     handleCardSelect,

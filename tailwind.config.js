@@ -6,6 +6,7 @@ module.exports = {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
+    './features/**/*.{ts,tsx}',
   ],
   theme: {
     extend: {
@@ -44,6 +45,15 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        slotPulse: {
+          "0%, 100%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.02)" },
+        },
+      },
+      animation: {
+        "slot-pulse": "slotPulse 150ms ease-out",
       },
     },
   },
