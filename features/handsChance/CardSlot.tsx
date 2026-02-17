@@ -4,11 +4,13 @@ import { Plus } from "lucide-react"
 import { PokerCard } from "./Card"
 import type { SelectedSlot } from "./types"
 
+type NonNullSlot = Exclude<SelectedSlot, null>
+
 interface CardSlotProps {
   card: string
-  slot: SelectedSlot
+  slot: NonNullSlot
   selectedSlot: SelectedSlot | null
-  onSlotClick: (slot: SelectedSlot) => void
+  onSlotClick: (slot: NonNullSlot) => void
   variant?: "compact" | "normal" | "small"
 }
 
