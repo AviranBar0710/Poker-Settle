@@ -29,20 +29,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let mounted = true
     let timeoutId: NodeJS.Timeout
 
-    // Catch unhandled auth refresh errors (e.g. "Invalid Refresh Token: Refresh Token Not Found")
-    // These can be thrown by Supabase's internal auto-refresh before our handlers run
+    // Catch unhandled auth errors (refresh token, network fetch failures)
+    // These can be thrown by Supabase's internal fetch/refresh before our handlers run
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
       const err = event?.reason
       const msg = String(err?.message || err?.error_description || err || "")
+      const errName = String(err?.name || "")
       const isRefreshTokenError =
         msg.includes("Invalid Refresh Token") ||
         msg.includes("Refresh Token Not Found") ||
         msg.includes("refresh_token_not_found") ||
         msg.includes("token_not_found")
+      const isNetworkFetchError =
+        errName === "AuthRetryableFetchError" ||
+        msg === "Load failed" ||
+        msg === "Failed to fetch" ||
+        msg.includes("Load failed")
       if (isRefreshTokenError) {
         event.preventDefault()
         console.warn("Caught invalid refresh token, clearing session:", msg)
         supabase.auth.signOut({ scope: "local" }).catch(() => {})
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+      } else if (isNetworkFetchError) {
+        event.preventDefault()
+        console.warn("Auth fetch failed (network), proceeding without session:", msg)
         setSession(null)
         setUser(null)
         setLoading(false)
@@ -60,32 +72,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Global error handler for unhandled auth errors
     const handleAuthError = (err: any) => {
-      if (!mounted) return
-      
-      const errorMessage = err?.message || err?.error_description || err?.error?.message || String(err || '')
-      const isRefreshTokenError = 
-        errorMessage.includes('refresh_token_not_found') ||
-        errorMessage.includes('Invalid Refresh Token') ||
-        errorMessage.includes('Refresh Token Not Found') ||
-        errorMessage.includes('refresh_token') ||
-        err?.code === 'refresh_token_not_found' ||
+      if (!mounted) return false
+
+      const errorMessage = err?.message || err?.error_description || err?.error?.message || String(err || "")
+      const errName = String(err?.name || "")
+      const isRefreshTokenError =
+        errorMessage.includes("refresh_token_not_found") ||
+        errorMessage.includes("Invalid Refresh Token") ||
+        errorMessage.includes("Refresh Token Not Found") ||
+        errorMessage.includes("refresh_token") ||
+        err?.code === "refresh_token_not_found" ||
         err?.status === 401 ||
         err?.statusCode === 401 ||
-        (err?.error as any)?.code === 'refresh_token_not_found' ||
-        errorMessage.includes('token_not_found')
-      
+        (err?.error as any)?.code === "refresh_token_not_found" ||
+        errorMessage.includes("token_not_found")
+      const isNetworkFetchError =
+        errName === "AuthRetryableFetchError" ||
+        errorMessage === "Load failed" ||
+        errorMessage === "Failed to fetch" ||
+        errorMessage.includes("Load failed")
+
       if (isRefreshTokenError) {
         console.warn("Invalid refresh token detected globally, clearing session:", errorMessage)
-        // Clear invalid session from storage silently
-        supabase.auth.signOut({ scope: 'local' }).catch(() => {
-          // Ignore errors during cleanup
-        })
+        supabase.auth.signOut({ scope: "local" }).catch(() => {})
         setSession(null)
         setUser(null)
         setLoading(false)
-        return true // Indicate error was handled
+        return true
       }
-      return false // Error was not handled
+      if (isNetworkFetchError) {
+        console.warn("Auth fetch failed (network), proceeding without session:", errorMessage)
+        setSession(null)
+        setUser(null)
+        setLoading(false)
+        return true
+      }
+      return false
     }
 
     // Get initial session with error handling
@@ -241,21 +263,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     try {
+      // Pre-flight: verify Supabase is reachable before redirecting (avoids ERR_NAME_NOT_RESOLVED on mobile)
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+      const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      if (supabaseUrl && anonKey && typeof window !== "undefined") {
+        try {
+          const ctrl = new AbortController()
+          const timeout = setTimeout(() => ctrl.abort(), 5000)
+          const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
+            method: "GET",
+            headers: { apikey: anonKey },
+            signal: ctrl.signal,
+          })
+          clearTimeout(timeout)
+          if (!res.ok) {
+            return {
+              error: new Error(
+                "Supabase is unreachable. Check if your project is paused in the Supabase Dashboard (Project Settings → General → Restore project)."
+              ),
+            }
+          }
+        } catch (preflightErr) {
+          const msg = (preflightErr as Error)?.message ?? ""
+          const isDnsOrNetwork =
+            msg.includes("Failed to fetch") ||
+            msg.includes("Load failed") ||
+            msg.includes("ERR_NAME_NOT_RESOLVED") ||
+            msg.includes("NetworkError") ||
+            msg.includes("aborted")
+          return {
+            error: new Error(
+              isDnsOrNetwork
+                ? "Cannot reach Supabase. Try: 1) Use WiFi instead of cellular 2) Unpause your project in Supabase Dashboard 3) Check supabase.co is reachable in your browser"
+                : "Supabase is unreachable. Check your network and ensure your project is not paused."
+            ),
+          }
+        }
+      }
+
       // Preserve any redirect URL from localStorage
       const storedRedirect = typeof window !== "undefined" ? localStorage.getItem("auth_redirect") : null
       const redirectTo = `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`
-      
+
       console.log("🔵 [AUTH] signInWithGoogle called:", {
         hasStoredRedirect: !!storedRedirect,
         storedRedirect,
-        redirectTo
+        redirectTo,
       })
-      
+
       // Verify auth_redirect is still in localStorage before OAuth redirect
       if (typeof window !== "undefined" && storedRedirect) {
         console.log("🔵 [AUTH] Verifying auth_redirect before OAuth:", localStorage.getItem("auth_redirect"))
       }
-      
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {

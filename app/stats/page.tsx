@@ -140,7 +140,7 @@ export default function StatsPage() {
                 <TableHead className="text-right font-semibold tabular-nums">Sessions</TableHead>
                 <TableHead className="text-right font-semibold tabular-nums">Total P/L</TableHead>
                 <TableHead className="text-right font-semibold tabular-nums">Avg P/L per session</TableHead>
-                <TableHead className="text-right font-semibold tabular-nums">Biggest win session</TableHead>
+                <TableHead className="text-right font-semibold tabular-nums">Best Session</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -268,7 +268,7 @@ export default function StatsPage() {
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Biggest win session</p>
+                      <p className="text-xs text-muted-foreground mb-1">Best Session</p>
                       <p className={cn("font-mono font-semibold tabular-nums", biggestColor)}>
                         {stat.biggestWinSession > 0 ? "+" : ""}
                         {currencySymbol}

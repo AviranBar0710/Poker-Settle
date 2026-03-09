@@ -76,6 +76,14 @@ import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
 import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
 import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
 import { InvitePlayersDialog } from "@/components/session/InvitePlayersDialog"
+import { PlayerMemberCombobox } from "@/components/session/PlayerMemberCombobox"
+import {
+  BottomSheet,
+  BottomSheetContent,
+  BottomSheetHeader,
+  BottomSheetTitle,
+  BottomSheetDescription,
+} from "@/components/ui/bottom-sheet"
 import { useSessionStage } from "@/hooks/useSessionStage"
 import { useLongPress } from "@/hooks/useLongPress"
 
@@ -107,6 +115,7 @@ function SessionPageInner() {
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [fixedBuyinAmount, setFixedBuyinAmount] = useState<number | null>(null)
   const [showFixedBuyinDialog, setShowFixedBuyinDialog] = useState(false)
+  const [batchAddSuccessCount, setBatchAddSuccessCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [actionsPlayerId, setActionsPlayerId] = useState<string | null>(null)
   const [addBuyinPlayer, setAddBuyinPlayer] = useState<Player | null>(null)
@@ -143,6 +152,8 @@ function SessionPageInner() {
     setPlayers,
     playerName,
     setPlayerName,
+    selectedProfileId,
+    setSelectedProfileId,
     isAddingPlayer,
     pendingPlayerId,
     setPendingPlayerId,
@@ -152,6 +163,7 @@ function SessionPageInner() {
     setEditingPlayerId,
     reloadPlayers,
     handleAddPlayer,
+    handleAddMultiplePlayers,
     addPlayerWithBuyin,
     handleLinkIdentity,
     confirmLinkIdentity,
@@ -167,6 +179,7 @@ function SessionPageInner() {
     setShowFixedBuyinDialog,
     setError,
     reloadTransactions,
+    onBatchAddComplete: (count) => setBatchAddSuccessCount(count),
   })
 
   // Reset load tracking when sessionId changes
@@ -1573,9 +1586,14 @@ function SessionPageInner() {
             transactions={transactions}
             playerName={playerName}
             setPlayerName={setPlayerName}
+            selectedProfileId={selectedProfileId}
+            setSelectedProfileId={setSelectedProfileId}
+            players={players}
             isAddingPlayer={isAddingPlayer}
             currentPhase={currentPhase}
             onAddPlayer={handleAddPlayer}
+            onAddMultiplePlayers={handleAddMultiplePlayers}
+            batchAddSuccessCount={batchAddSuccessCount}
             onTransactionUpdate={() => {
               reloadTransactions()
               reloadPlayers()
@@ -1583,6 +1601,8 @@ function SessionPageInner() {
             onClose={() => {
               setEditingPlayerId(null)
               setPlayerName("")
+              setSelectedProfileId(null)
+              setBatchAddSuccessCount(0)
             }}
           />
         )}
@@ -2388,13 +2408,15 @@ function MobilePlayerCard({
       })}
     >
       <CardContent className="px-3 py-2.5 space-y-0.5">
-        {/* Row 1: Name + (You) left, 3-dots right */}
+        {/* Row 1: Name + identity badge left, 3-dots right */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
             <p className="font-semibold text-base truncate">{result.player.name}</p>
-            {user && result.player.profileId === user.id && (
+            {user && result.player.profileId === user.id ? (
               <span className="text-xs text-muted-foreground shrink-0">(You)</span>
-            )}
+            ) : !result.player.profileId ? (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">Guest</Badge>
+            ) : null}
           </div>
           {onRowLongPress && (
             <Button
@@ -2638,9 +2660,11 @@ function PlayersTable({
                                 No buy-in
                               </Badge>
                             )}
-                            {user && result.player.profileId === user.id && (
+                            {user && result.player.profileId === user.id ? (
                               <span className="text-xs text-muted-foreground">(You)</span>
-                            )}
+                            ) : !result.player.profileId ? (
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Guest</Badge>
+                            ) : null}
                           </div>
                         </TableCell>
                         <TableCell className="text-right font-mono text-base whitespace-nowrap">
@@ -2723,9 +2747,14 @@ function EditPlayerDialog({
   transactions,
   playerName,
   setPlayerName,
+  selectedProfileId,
+  setSelectedProfileId,
+  players: sessionPlayers,
   isAddingPlayer,
   currentPhase,
   onAddPlayer,
+  onAddMultiplePlayers,
+  batchAddSuccessCount = 0,
   onTransactionUpdate,
   onClose,
 }: {
@@ -2738,14 +2767,21 @@ function EditPlayerDialog({
   transactions: Transaction[]
   playerName: string
   setPlayerName: (name: string) => void
+  selectedProfileId: string | null
+  setSelectedProfileId: (id: string | null) => void
+  players: Player[]
   isAddingPlayer: boolean
   currentPhase: "active_game" | "chip_entry" | "ready_to_finalize" | "finalized"
   onAddPlayer: (e: React.FormEvent<HTMLFormElement>) => void
+  onAddMultiplePlayers: (entries: Array<{ name: string; profileId: string | null }>) => Promise<void>
+  batchAddSuccessCount?: number
   onTransactionUpdate?: () => void
   onClose: () => void
 }) {
   const isDesktop = useIsDesktop()
   const isNewPlayer = !player
+  const [selectedMembers, setSelectedMembers] = useState<Array<{ profileId: string; displayName: string }>>([])
+  const [selectedGuests, setSelectedGuests] = useState<string[]>([])
   
   // State for editing player name
   const [editingPlayerName, setEditingPlayerName] = useState(player?.name || "")
@@ -3038,6 +3074,112 @@ function EditPlayerDialog({
     onClose()
   }
 
+  const totalSelected = selectedMembers.length + selectedGuests.length
+  const entries = [
+    ...selectedMembers.map((m) => ({ name: m.displayName, profileId: m.profileId as string | null })),
+    ...selectedGuests.map((name) => ({ name, profileId: null as string | null })),
+  ]
+
+  const handleMobileAdd = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (isAddingPlayer || totalSelected === 0) return
+    onAddMultiplePlayers(entries)
+  }
+
+  // Show batch success overlay when batchAddSuccessCount > 0 (from fixed buy-in flow)
+  useEffect(() => {
+    if (batchAddSuccessCount > 0) {
+      const t = setTimeout(() => onClose(), 1200)
+      return () => clearTimeout(t)
+    }
+  }, [batchAddSuccessCount, onClose])
+
+  // Mobile full-screen Add Player sheet (multi-select)
+  if (isNewPlayer && !isDesktop) {
+    const showSuccess = batchAddSuccessCount > 0
+
+    return (
+      <BottomSheet open={true} onOpenChange={(open: boolean) => !open && onClose()}>
+        <BottomSheetContent height="full" className="h-[95vh]">
+          {/* Success overlay */}
+          {showSuccess && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 rounded-t-2xl animate-in fade-in duration-200">
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
+                <Check className="h-8 w-8 text-green-600" />
+              </div>
+              <p className="text-lg font-semibold text-foreground">
+                {batchAddSuccessCount === 1 ? "Player Added" : `${batchAddSuccessCount} Players Added`}
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {batchAddSuccessCount === 1 ? "Player has been added to the session" : "Players have been added to the session"}
+              </p>
+            </div>
+          )}
+
+          {/* Sticky header */}
+          <BottomSheetHeader className="flex-shrink-0 border-b pb-3">
+            <div className="flex items-center justify-between">
+              <BottomSheetTitle className="text-lg font-semibold">Add Players</BottomSheetTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="text-muted-foreground hover:text-foreground -mr-2"
+              >
+                Cancel
+              </Button>
+            </div>
+            <BottomSheetDescription className="text-sm text-muted-foreground">
+              Select club members or add guests, then tap Add
+            </BottomSheetDescription>
+          </BottomSheetHeader>
+
+          {/* Search input + scrollable member list */}
+          <div className="flex-1 min-h-0 flex flex-col px-5 pt-5 mt-4">
+            {playerError && (
+              <Alert className="border-destructive bg-destructive/10 text-destructive mb-3 flex-shrink-0">
+                <AlertDescription>{playerError}</AlertDescription>
+              </Alert>
+            )}
+            <PlayerMemberCombobox
+              clubId={clubId}
+              value={playerName}
+              onChange={setPlayerName}
+              selectedProfileId={null}
+              onSelectMember={() => {}}
+              excludeProfileIds={sessionPlayers.filter((p) => p.profileId).map((p) => p.profileId!)}
+              disabled={isAddingPlayer || showSuccess}
+              fullScreenList
+              multiSelect
+              selectedMembers={selectedMembers}
+              selectedGuests={selectedGuests}
+              onSelectionChange={(members, guests) => {
+                setSelectedMembers(members)
+                setSelectedGuests(guests)
+              }}
+            />
+          </div>
+
+          {/* Sticky footer with backdrop-blur */}
+          <div
+            className="flex-shrink-0 px-5 pt-3 border-t bg-background/80 backdrop-blur-md"
+            style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+          >
+            <form onSubmit={handleMobileAdd} className="w-full">
+              <Button
+                type="submit"
+                disabled={isAddingPlayer || totalSelected === 0 || showSuccess}
+                className="w-full h-12 text-base font-semibold rounded-xl"
+              >
+                {isAddingPlayer ? "Adding..." : totalSelected === 0 ? "Add Players" : `Add ${totalSelected} Player${totalSelected === 1 ? "" : "s"}`}
+              </Button>
+            </form>
+          </div>
+        </BottomSheetContent>
+      </BottomSheet>
+    )
+  }
+
   return (
     <Dialog open={true} onOpenChange={(open: boolean) => !open && onClose()}>
       <DialogContent 
@@ -3055,7 +3197,7 @@ function EditPlayerDialog({
               {isNewPlayer ? "Add Player" : "Edit Player"}
             </DialogTitle>
             <DialogDescription className="text-sm mt-1.5 text-muted-foreground md:mt-0">
-              {isNewPlayer ? "Enter the player name" : "Update player details and transactions"}
+              {isNewPlayer ? "Select a club member or type a guest name" : "Update player details and transactions"}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -3072,20 +3214,21 @@ function EditPlayerDialog({
             {isNewPlayer ? (
             <div className="space-y-2">
               <label htmlFor="player-name-input" className="text-sm font-semibold block text-foreground">
-                Player Name
+                Player
               </label>
-              <Input
-                id="player-name-input"
-                type="text"
-                placeholder="Enter player name"
+              <PlayerMemberCombobox
+                clubId={clubId}
                 value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                required
+                onChange={setPlayerName}
+                selectedProfileId={selectedProfileId}
+                onSelectMember={(profileId, displayName) => {
+                  setSelectedProfileId(profileId)
+                  setPlayerName(displayName)
+                }}
+                excludeProfileIds={sessionPlayers.filter((p) => p.profileId).map((p) => p.profileId!)}
                 disabled={isAddingPlayer}
-                className="h-12 md:h-10 text-base md:text-sm"
-                autoFocus={false}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && playerName.trim() && !isAddingPlayer) {
+                  if (e.key === "Enter" && playerName.trim() && !isAddingPlayer && !selectedProfileId) {
                     e.preventDefault()
                     onAddPlayer(e as any)
                     if (playerName.trim()) {

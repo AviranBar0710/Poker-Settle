@@ -23,6 +23,8 @@ interface UseSessionPlayersParams {
   setShowFixedBuyinDialog: (show: boolean) => void
   setError: (error: string | null) => void
   reloadTransactions: () => Promise<void>
+  /** Called when batch add completes (e.g. to close Add Player sheet and show success) */
+  onBatchAddComplete?: (count: number) => void
 }
 
 interface UseSessionPlayersReturn {
@@ -31,6 +33,8 @@ interface UseSessionPlayersReturn {
   setPlayers: React.Dispatch<React.SetStateAction<Player[]>>
   playerName: string
   setPlayerName: (name: string) => void
+  selectedProfileId: string | null
+  setSelectedProfileId: (id: string | null) => void
   isAddingPlayer: boolean
   pendingPlayerId: string | null
   setPendingPlayerId: (id: string | null) => void
@@ -42,7 +46,9 @@ interface UseSessionPlayersReturn {
   // Handlers
   reloadPlayers: () => Promise<void>
   handleAddPlayer: (e: React.FormEvent<HTMLFormElement>) => Promise<void>
-  addPlayerWithBuyin: (name: string, buyinAmount?: number | null) => Promise<void>
+  handleAddMultiplePlayers: (entries: Array<{ name: string; profileId: string | null }>) => Promise<void>
+  addPlayerWithBuyin: (name: string, buyinAmount?: number | null, profileId?: string | null) => Promise<void>
+  addMultiplePlayersWithBuyin: (entries: Array<{ name: string; profileId: string | null }>, buyinAmount: number | null) => Promise<void>
   handleLinkIdentity: (playerId: string) => void
   confirmLinkIdentity: () => Promise<void>
   handleFixedBuyinConfirm: (amount: number) => void
@@ -61,12 +67,16 @@ export function useSessionPlayers({
   setShowFixedBuyinDialog,
   setError,
   reloadTransactions,
+  onBatchAddComplete,
 }: UseSessionPlayersParams): UseSessionPlayersReturn {
   // Player state
   const [players, setPlayers] = useState<Player[]>([])
   const [playerName, setPlayerName] = useState("")
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
   const [isAddingPlayer, setIsAddingPlayer] = useState(false)
   const [pendingPlayerName, setPendingPlayerName] = useState("")
+  const [pendingProfileId, setPendingProfileId] = useState<string | null>(null)
+  const [pendingPlayers, setPendingPlayers] = useState<Array<{ name: string; profileId: string | null }>>([])
   const [pendingPlayerId, setPendingPlayerId] = useState<string | null>(null)
   const [showLinkIdentityDialog, setShowLinkIdentityDialog] = useState(false)
   const [editingPlayerId, setEditingPlayerId] = useState<string | "new" | null>(null)
@@ -102,8 +112,8 @@ export function useSessionPlayers({
     }
   }, [sessionId])
 
-  // Add player with optional buy-in
-  const addPlayerWithBuyin = useCallback(async (name: string, buyinAmount?: number | null) => {
+  // Add player with optional buy-in and optional profile link
+  const addPlayerWithBuyin = useCallback(async (name: string, buyinAmount?: number | null, profileId?: string | null) => {
     setIsAddingPlayer(true)
 
     // DEBUG: Generate UUID v4 for player ID
@@ -145,14 +155,19 @@ export function useSessionPlayers({
         return
       }
       
+      const insertPayload: Record<string, unknown> = {
+        id: playerId,
+        session_id: sessionId,
+        club_id: sessionClubId,
+        name: name,
+      }
+      if (profileId) {
+        insertPayload.profile_id = profileId
+      }
+
       const { data, error } = await supabase
         .from("players")
-        .insert({
-          id: playerId,
-          session_id: sessionId,
-          club_id: sessionClubId,
-          name: name
-        })
+        .insert(insertPayload)
         .select()
 
       // DEBUG: Log both data and error
@@ -211,11 +226,10 @@ export function useSessionPlayers({
         }
       }
 
-      // DEBUG: Confirm completion
       console.log("🔵 [DEBUG] Supabase Add Player attempt finished")
 
       setPlayerName("")
-      // Reload transactions first to ensure they're available, then reload players
+      setSelectedProfileId(null)
       await reloadTransactions()
       await reloadPlayers()
     } catch (err) {
@@ -225,11 +239,83 @@ export function useSessionPlayers({
     }
   }, [sessionId, session, fixedBuyinAmount, setError, reloadTransactions, reloadPlayers])
 
+  // Bulk add multiple players with optional buy-in (single Supabase insert per table)
+  const addMultiplePlayersWithBuyin = useCallback(async (
+    entries: Array<{ name: string; profileId: string | null }>,
+    buyinAmount: number | null
+  ) => {
+    if (entries.length === 0) return
+
+    setIsAddingPlayer(true)
+
+    const sessionClubId = session?.clubId
+    if (!sessionClubId) {
+      setError("Session error: missing club information")
+      setIsAddingPlayer(false)
+      return
+    }
+
+    try {
+      const playerRows = entries.map(({ name, profileId }) => {
+        const playerId = generateUUID()
+        const row: Record<string, unknown> = {
+          id: playerId,
+          session_id: sessionId,
+          club_id: sessionClubId,
+          name,
+        }
+        if (profileId) row.profile_id = profileId
+        return { row, playerId }
+      })
+
+      const playersPayload = playerRows.map(({ row }) => row)
+      const { error: playersError } = await supabase
+        .from("players")
+        .insert(playersPayload)
+
+      if (playersError) {
+        console.error("Bulk player insert error:", playersError)
+        setError(playersError.message)
+        setIsAddingPlayer(false)
+        return
+      }
+
+      if (buyinAmount !== null && buyinAmount > 0) {
+        const transactionsPayload = playerRows.map(({ row }) => ({
+          id: generateUUID(),
+          session_id: sessionId,
+          club_id: sessionClubId,
+          player_id: row.id,
+          type: "buyin" as const,
+          amount: buyinAmount,
+        }))
+
+        const { error: txError } = await supabase
+          .from("transactions")
+          .insert(transactionsPayload)
+
+        if (txError) {
+          console.error("Bulk transaction insert error:", txError)
+          setError(txError.message)
+        }
+      }
+
+      setPlayerName("")
+      setSelectedProfileId(null)
+      await reloadTransactions()
+      await reloadPlayers()
+    } catch (err) {
+      console.error("Unexpected error during bulk player insert:", err)
+      setError("Failed to add players. Please try again.")
+    } finally {
+      setIsAddingPlayer(false)
+    }
+  }, [sessionId, session, setError, reloadTransactions, reloadPlayers])
+
   // Handle add player form submission
   const handleAddPlayer = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     
-    // DEBUG: Confirm handler execution
     console.log("🔵 [DEBUG] Add Player handler executed")
     
     if (!playerName.trim()) {
@@ -240,36 +326,64 @@ export function useSessionPlayers({
     // If this is the first player and fixed buy-in hasn't been set, show dialog
     if (players.length === 0 && fixedBuyinAmount === null) {
       setPendingPlayerName(playerName.trim())
+      setPendingProfileId(selectedProfileId)
       setShowFixedBuyinDialog(true)
-      return // Wait for user to set fixed buy-in or skip
+      return
     }
 
-    // For subsequent players, explicitly pass fixedBuyinAmount if it exists
-    // This ensures the fixed buy-in is applied even if state hasn't updated yet
-    await addPlayerWithBuyin(playerName.trim(), fixedBuyinAmount ?? undefined)
-  }, [playerName, players.length, fixedBuyinAmount, setShowFixedBuyinDialog, addPlayerWithBuyin])
+    await addPlayerWithBuyin(playerName.trim(), fixedBuyinAmount ?? undefined, selectedProfileId)
+    setSelectedProfileId(null)
+  }, [playerName, selectedProfileId, players.length, fixedBuyinAmount, setShowFixedBuyinDialog, addPlayerWithBuyin])
+
+  // Handle batch add (multi-select flow)
+  const handleAddMultiplePlayers = useCallback(async (entries: Array<{ name: string; profileId: string | null }>) => {
+    if (entries.length === 0) return
+
+    if (players.length === 0 && fixedBuyinAmount === null) {
+      setPendingPlayers(entries)
+      setShowFixedBuyinDialog(true)
+      return
+    }
+
+    await addMultiplePlayersWithBuyin(entries, fixedBuyinAmount)
+    onBatchAddComplete?.(entries.length)
+  }, [players.length, fixedBuyinAmount, setShowFixedBuyinDialog, addMultiplePlayersWithBuyin, onBatchAddComplete])
 
   // Handle fixed buy-in dialog confirmation
-  const handleFixedBuyinConfirm = useCallback((amount: number) => {
+  const handleFixedBuyinConfirm = useCallback(async (amount: number) => {
     setFixedBuyinAmount(amount)
     setShowFixedBuyinDialog(false)
-    // Now add the pending player with the buy-in amount passed directly
-    if (pendingPlayerName) {
-      addPlayerWithBuyin(pendingPlayerName, amount) // Pass amount directly to avoid state timing issue
+    const count = pendingPlayers.length
+    if (count > 0) {
+      const entries = [...pendingPlayers]
+      setPendingPlayers([])
+      await addMultiplePlayersWithBuyin(entries, amount)
+      onBatchAddComplete?.(count)
+    } else if (pendingPlayerName) {
+      addPlayerWithBuyin(pendingPlayerName, amount, pendingProfileId)
       setPendingPlayerName("")
+      setPendingProfileId(null)
+      setSelectedProfileId(null)
     }
-  }, [setFixedBuyinAmount, setShowFixedBuyinDialog, pendingPlayerName, addPlayerWithBuyin])
+  }, [setFixedBuyinAmount, setShowFixedBuyinDialog, pendingPlayers, pendingPlayerName, pendingProfileId, addMultiplePlayersWithBuyin, addPlayerWithBuyin, onBatchAddComplete])
 
   // Handle fixed buy-in dialog skip
-  const handleFixedBuyinSkip = useCallback(() => {
-    setFixedBuyinAmount(null) // Explicitly set to null to indicate "no fixed buy-in"
+  const handleFixedBuyinSkip = useCallback(async () => {
+    setFixedBuyinAmount(null)
     setShowFixedBuyinDialog(false)
-    // Now add the pending player without buy-in
-    if (pendingPlayerName) {
-      addPlayerWithBuyin(pendingPlayerName, null) // Pass null directly to avoid state timing issue
+    const count = pendingPlayers.length
+    if (count > 0) {
+      const entries = [...pendingPlayers]
+      setPendingPlayers([])
+      await addMultiplePlayersWithBuyin(entries, null)
+      onBatchAddComplete?.(count)
+    } else if (pendingPlayerName) {
+      addPlayerWithBuyin(pendingPlayerName, null, pendingProfileId)
       setPendingPlayerName("")
+      setPendingProfileId(null)
+      setSelectedProfileId(null)
     }
-  }, [setFixedBuyinAmount, setShowFixedBuyinDialog, pendingPlayerName, addPlayerWithBuyin])
+  }, [setFixedBuyinAmount, setShowFixedBuyinDialog, pendingPlayers, pendingPlayerName, pendingProfileId, addMultiplePlayersWithBuyin, addPlayerWithBuyin, onBatchAddComplete])
 
   // Handle "This is me" identity linking - shows confirmation dialog first
   const handleLinkIdentity = useCallback((playerId: string) => {
@@ -368,6 +482,8 @@ export function useSessionPlayers({
     setPlayers,
     playerName,
     setPlayerName,
+    selectedProfileId,
+    setSelectedProfileId,
     isAddingPlayer,
     pendingPlayerId,
     setPendingPlayerId,
@@ -379,7 +495,9 @@ export function useSessionPlayers({
     // Handlers
     reloadPlayers,
     handleAddPlayer,
+    handleAddMultiplePlayers,
     addPlayerWithBuyin,
+    addMultiplePlayersWithBuyin,
     handleLinkIdentity,
     confirmLinkIdentity,
     handleFixedBuyinConfirm,

@@ -27,6 +27,28 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
+        {/* Catch "Load failed" / AuthRetryableFetchError before React mounts - prevents Next.js overlay */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  var isLoadFailed = function(err) {
+    if (!err) return false;
+    var msg = (err.message || err.error_description || err.error && err.error.message || String(err || '')).toLowerCase();
+    var name = (err.name || '').toString();
+    return name === 'AuthRetryableFetchError' || msg === 'load failed' || msg === 'failed to fetch' || msg.indexOf('load failed') >= 0;
+  };
+  window.addEventListener('unhandledrejection', function(ev) {
+    if (isLoadFailed(ev.reason)) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      console.warn('[Auth] Network fetch failed, proceeding without session');
+    }
+  }, true);
+})();
+            `.trim(),
+          }}
+        />
         <AuthProvider>
           <ClubProvider>
             <UIStateProvider>
@@ -36,7 +58,7 @@ export default function RootLayout({
             </UIStateProvider>
           </ClubProvider>
         </AuthProvider>
-        <Analytics />
+        {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
     </html>
   )

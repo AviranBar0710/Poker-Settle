@@ -10,7 +10,7 @@ This document defines how the Stats/Leaderboard screen must be presented for rea
 ## Layout
 
 - **Mobile (default / narrow viewport):** Card-based list. One player per card. Cards stacked vertically with clear separation. No table on mobile.
-- **Desktop (md breakpoint and up):** Table with columns: Rank, Player, Sessions, Total P/L, Avg P/L per session, Biggest win session. Table header may be sticky when the list is long.
+- **Desktop (md breakpoint and up):** Table with columns: Rank, Player, Sessions, Total P/L, Avg P/L per session, Best Session. Table header may be sticky when the list is long.
 
 ## Data readability
 

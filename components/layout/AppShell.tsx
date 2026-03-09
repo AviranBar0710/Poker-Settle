@@ -385,15 +385,14 @@ export function AppShell({ children }: AppShellProps) {
             </div>
           ) : user ? (
             <>
-              <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-background border">
-                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 text-primary ring-2 ring-primary/20">
-                  <User className="h-5 w-5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-0.5">Logged in</p>
-                  <p className="text-sm font-medium truncate text-foreground">{user.email}</p>
-                </div>
-              </div>
+              <Link
+                href="/profile"
+                onClick={closeSidebar}
+                className="flex items-center gap-2 w-full px-4 py-2.5 rounded-lg text-sm font-medium hover:bg-accent transition-colors text-left"
+              >
+                <User className="h-4 w-4 shrink-0 text-muted-foreground" />
+                Profile
+              </Link>
               <Button
                 type="button"
                 variant="outline"
