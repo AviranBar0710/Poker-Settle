@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Play, Plus, Users, Coins, Clock } from "lucide-react"
+import { Play, Users, Coins, Clock } from "lucide-react"
 import { getCurrencySymbol } from "@/lib/currency"
 import { formatNumber } from "@/lib/utils"
 import type { Session } from "@/types/session"
@@ -14,7 +14,6 @@ interface ActiveSessionBannerProps {
   activeSession: Session | null
   playerCount: number
   totalPot: number
-  onCreateSession: () => void
 }
 
 function getElapsedTime(createdAt: string): string {
@@ -34,13 +33,11 @@ export function ActiveSessionBanner({
   activeSession,
   playerCount,
   totalPot,
-  onCreateSession,
 }: ActiveSessionBannerProps) {
   const [elapsed, setElapsed] = useState<string>("—")
 
   useEffect(() => {
     if (!activeSession) {
-      setElapsed("—")
       return
     }
 
@@ -54,28 +51,7 @@ export function ActiveSessionBanner({
   }, [activeSession])
 
   if (!activeSession) {
-    return (
-      <Card className="border-dashed border-2 border-muted-foreground/25 bg-muted/30">
-        <CardContent className="py-8">
-          <div className="flex flex-col items-center text-center gap-4 sm:flex-row sm:text-start sm:justify-between">
-            <div className="space-y-1">
-              <p className="text-lg font-semibold">No active session</p>
-              <p className="text-sm text-muted-foreground">
-                Start a new poker session to begin tracking.
-              </p>
-            </div>
-            <Button
-              onClick={onCreateSession}
-              size="lg"
-              className="gap-2 w-full sm:w-auto shrink-0"
-            >
-              <Plus className="h-4 w-4" />
-              Start New Session
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    )
+    return null
   }
 
   const sym = getCurrencySymbol(activeSession.currency)

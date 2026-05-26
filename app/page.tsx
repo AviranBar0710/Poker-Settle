@@ -316,10 +316,6 @@ function HomePageInner() {
             activeSession={activeSession}
             playerCount={activeSessionPlayerCount}
             totalPot={activeSessionPot}
-            onCreateSession={() => {
-              setSessionName(formatDateDDMMYYYY(new Date()))
-              setShowCreateDialog(true)
-            }}
           />
 
           {/* Create Session Dialog */}
