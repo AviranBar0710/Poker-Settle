@@ -14,6 +14,14 @@ export function formatDateDDMMYYYY(date: Date | string): string {
   return `${day}-${month}-${year}`
 }
 
+/** Fixed-locale number formatting — avoids SSR/client hydration mismatches. */
+export function formatNumber(
+  value: number,
+  options?: Intl.NumberFormatOptions
+): string {
+  return new Intl.NumberFormat("en-US", options).format(value)
+}
+
 /**
  * Generate a unique session ID
  * Uses a combination of timestamp and random string

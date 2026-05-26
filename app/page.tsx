@@ -25,6 +25,7 @@ import { useIsDesktop } from "@/hooks/useIsDesktop"
 import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
+import { ActiveSessionBanner } from "@/components/dashboard/ActiveSessionBanner"
 
 export default function HomePage() {
   return (
@@ -256,6 +257,16 @@ function HomePageInner() {
   const totalSessions = sessions.length
   const activeSessions = sessions.filter((s) => !s.finalizedAt).length
   const finalizedSessions = sessions.filter((s) => s.finalizedAt)
+
+  const activeSession = sessions.find((s) => !s.finalizedAt) ?? null
+  const activeSessionPlayerCount = activeSession
+    ? players.filter((p) => p.session_id === activeSession.id).length
+    : 0
+  const activeSessionPot = activeSession
+    ? transactions
+        .filter((t) => t.sessionId === activeSession.id && t.type === "buyin")
+        .reduce((sum, t) => sum + t.amount, 0)
+    : 0
   
   // Calculate total pot value (sum of all buy-ins from finalized sessions)
   const totalPotValue = finalizedSessions.reduce((total, session) => {
@@ -300,6 +311,16 @@ function HomePageInner() {
               New Session
             </Button>
           </div>
+
+          <ActiveSessionBanner
+            activeSession={activeSession}
+            playerCount={activeSessionPlayerCount}
+            totalPot={activeSessionPot}
+            onCreateSession={() => {
+              setSessionName(formatDateDDMMYYYY(new Date()))
+              setShowCreateDialog(true)
+            }}
+          />
 
           {/* Create Session Dialog */}
           <Dialog 
