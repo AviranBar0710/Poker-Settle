@@ -40,3 +40,8 @@ script.sh
 *.tsbuildinfo
 next-env.d.ts
 
+.dev-server.log
+flutter_sdk_local/
+mobile_wrapper/
+playwright-report/
+test-results/
