@@ -202,3 +202,32 @@ land screen-by-screen in the next passes).
   `text-lg font-extrabold`, and the strip is a single row app-wide.
 
 Verification: `npm run build` ✓.
+
+### L3 — Profile (layout_guide.md §3, the worked example)
+
+- **Identity hero promoted**: avatar 80px → 96px (`h-24 w-24 text-3xl`), name
+  now H2 (`text-2xl font-bold`), and a `role` Badge added under it sourced
+  from `useClub().activeClub?.role` (rendered only when a club is active).
+- **Net-result card added** via new shared `components/stats/NetResultCard.tsx`
+  (spade watermark, ALL-TIME NET label, 28px signed money in success/danger,
+  StatStrip: Games / Win rate / Best night). Data comes from the existing
+  `lib/stats/calc.ts` loaders + `getSessionHistoryForProfile` filtered to the
+  logged-in user — the reuse sanctioned by the guide's data note. Card is
+  omitted entirely when there's no active club or no finalized history.
+  - Win rate = sessions with positive P/L ÷ sessions played (computed from
+    history entries; `PlayerStat` has no win-rate field).
+- **Account section**: the form-style Card was deleted; Display name and
+  Email are now `ListRow`s under an H4 "Account" header. The display-name
+  edit state machine (`isEditing`/`handleSaveEdit`/`saveError`) is unchanged —
+  the row swaps to the original edit block (Input + ✓/✕) wrapped in a tile
+  shell while editing.
+- **Logout demoted**: `variant="destructive"` fill → ghost with
+  `text-destructive` + `hover:bg-destructive/10`. It is no longer the loudest
+  element on the screen.
+- `bg-background` dropped from the page div (body glow).
+- **Deviation:** loading/error states moved above the hero as centered
+  captions (previously inside the deleted Card); no skeleton for the stats
+  card — it simply appears when data lands, per the guide's "no empty-state
+  skeleton" instruction.
+
+Verification: `npm run build` ✓.
