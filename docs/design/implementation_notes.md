@@ -289,3 +289,39 @@ Verification: `npm run build` ✓.
 - Data loading untouched on both pages.
 
 Verification: `npm run build` ✓.
+
+### L6 — Session detail (layout_guide.md §6)
+
+Scoped to the guide's three layout moves; the phase state machine, handlers,
+and settlement logic are untouched.
+
+- **Header restructured** (`app/session/[id]/page.tsx` main return):
+  - Order is now: session name + Live/Settled badge → created/settled caption
+    → **`PhaseProgress`** (new `components/session/PhaseProgress.tsx`: four
+    4px progress bars — Buy-ins / Cash-outs / Review / Settled — mapped from
+    `currentPhase`, non-interactive) → StageBanner → content.
+  - The mobile 3-stat summary Card (which sat ABOVE the title inside the
+    sticky header) and the desktop right-aligned quick stats were both
+    deleted; one `StatStrip` (Buy-ins / Cash-outs / P/L with semantic accent)
+    is now the first content item, below the stage progress.
+  - Badge fixed to design variants: `live` (pulsing dot) / `settled`
+    (was `default`/`secondary` with "Finalized"/"Active" copy).
+  - **Deviation:** the metadata line lost the currency symbol and truncated
+    session ID (symbol is visible in every money value; the ID served no
+    user purpose). Created/settled dates kept as a caption.
+- **Sticky stage CTAs**: the two mobile `fixed bottom-0` action bars swapped
+  their `border-t + shadow-lg` shell for the StickyCta gradient fade
+  (classes only; buttons and disabled rules untouched). Not literally the
+  `StickyCta` component — these bars carry multi-button stage logic.
+- **Mobile player rows**: `MobilePlayerCard`'s shell changed from `<Card>`
+  (gradient, 24px) to the tile-row shell (`rounded-tile border
+  bg-background/45`, press-scale) so player lines read as list rows per the
+  design; all inner content, long-press and stop-propagation handlers
+  unchanged. Desktop `<Table>` view kept as-is (the guide's ListRow
+  conversion with in-row inputs there is higher-risk; deferred).
+- **Note:** `components/session/Stepper.tsx` and the `SetupStep`/`BuyinsStep`
+  /`CashoutsStep`/`ResultsStep`/`ShareStep` functions in the page are dead
+  code — nothing renders them (the live UI is the phase-based workspace).
+  Left in place; deleting them is a safe cleanup for a follow-up commit.
+
+Verification: `npm run build` ✓.
