@@ -152,6 +152,15 @@ live in the screen-sketches artifact.
 | 10 | Chip Entry | `app/session/[id]` (stage `chip_entry`) | Stepper at stage 3/4, balance banner (off-balance = danger), player lines with right-aligned chip inputs, disabled Primary CTA until balanced |
 | 11 | Transactions Record | session detail (transactions view) | Totals strip with balance check, day dividers, timestamped rows with BUY-IN (muted) / CASHOUT (success) badges |
 | 12 | Settlement | `app/session/[id]` (stage `finalized`) | Balance banner (success), transfer rows (debtor → creditor with paid checkmarks), per-player results (in/out/net), Share ghost CTA |
+| 13 | Join a Club (onboarding) | `app/join` | Single-suit hero, monospace code input (large, letter-spaced), Primary join CTA, "or" divider, create-club Ghost CTA |
+| 14 | Club Members (admin) | `app/club/members` | Join-code tile + copy chip, member rows with role badges (OWNER/ADMIN/MEMBER), ⋮ kebab → actions bottom sheet (make admin, remove) |
+| 15 | Link Players (admin) | `app/club/link-players` | Warning balance banner (unlinked count), player rows with member-select pills (green-bordered when linked), sticky Save CTA |
+| 16 | Join Session (invite link) | `app/session/join/[token]` | Invite hero, read-only Session Card preview, Primary join CTA |
+| 17 | Player Stats (detail) | `app/stats/player/[profileId]` | Net-result card with per-session bar sparkline (green up / red down), stat tiles, session history rows with in/out/net |
+
+**Transient screens** — `auth/callback` and `auth/logout` show only the app
+background glow with a muted "Signing you in…" / "Signing out…" caption; no
+components beyond body styles.
 
 Screens 2, 5, 6 share the same top bar; 4 and 9 are bottom sheets over a dimmed
 dashboard. The playing-card component (screen 8) is the only place with a light

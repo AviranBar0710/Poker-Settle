@@ -86,7 +86,11 @@ In `globals.css`:
 6. Stats (`app/stats/page.tsx`, `app/stats/player/[profileId]`) — leaderboard rank rows, period selector.
 7. Session detail (`app/session/[id]`) — stage stepper bars, player lines, sticky CTA (heaviest screen: PlayerTable, sheets, FinalizationChecklist all live here). Covers all four in-session faces: buy-ins stage, chip entry (balance banner + chip inputs, gate CTA on balance), transactions record (timestamped rows, BUY-IN/CASHOUT badges), and settlement (transfer rows with paid checks, per-player results).
 8. Hands Chance (`features/handsChance/*`) — already dark; align greens to `--color-primary`, card picker tiles to the tile radius.
-9. Club switcher & members (`AppShell` menu, `app/club/members`, `app/join`) — club rows, join-code tile, ghost + primary CTAs.
+9. Club switcher & members (`AppShell` menu, `app/club/members`, `app/join`) — club rows, join-code tile, role badges + kebab actions, ghost + primary CTAs.
+10. Onboarding & invites (`app/join`, `app/session/join/[token]`) — code input, invite hero, session preview card.
+11. Admin tools (`app/club/link-players`) — warning banner, member-select pills, sticky save.
+12. Player stats detail (`app/stats/player/[profileId]`) — sparkline net card, history rows.
+13. Transient auth screens (`app/auth/callback`, `app/auth/logout`) — background glow + muted caption only.
 
 The full screen-to-component mapping is in `DESIGN_SYSTEM.md` § 4.
 
