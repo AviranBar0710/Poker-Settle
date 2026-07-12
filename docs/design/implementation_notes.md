@@ -367,6 +367,16 @@ screen ("My Clubs"), per the HTML mockup approved by the user.
 
 Verification: `npm run build` ✓ (13 routes incl. new `/clubs`).
 
+### Tweak — Dashboard order (user request)
+
+- New Session button is now ALWAYS in the header top-right (mobile too);
+  the mobile `StickyCta` was removed and the `pb-28` padding reverted.
+  Supersedes the guide §2's bottom-anchored-CTA rule for this screen —
+  explicit user preference.
+- Section order fixed to: header → StatStrip (Games/Live/Total pot/Avg pot)
+  → ActiveSessionBanner → Recent games. The stats are always on top; the
+  live-game hero sits below them when one exists.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,

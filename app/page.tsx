@@ -27,7 +27,6 @@ import { useClub } from "@/contexts/ClubContext"
 import { ActiveSessionBanner } from "@/components/dashboard/ActiveSessionBanner"
 import { SessionCard } from "@/components/dashboard/SessionCard"
 import { StatStrip } from "@/components/ui/stat-strip"
-import { StickyCta } from "@/components/layout/StickyCta"
 
 export default function HomePage() {
   return (
@@ -291,9 +290,9 @@ function HomePageInner() {
 
   return (
     <AppShell>
-      <div className="min-h-screen p-4 pb-28 sm:p-6 sm:pb-6 overflow-x-hidden">
+      <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-          {/* Page Header */}
+          {/* Page Header — New Session always top-right */}
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <Button
@@ -301,13 +300,37 @@ function HomePageInner() {
                 setSessionName(formatDateDDMMYYYY(new Date()))
                 setShowCreateDialog(true)
               }}
-              size="lg"
-              className="hidden sm:inline-flex gap-2"
+              className="gap-1.5 shrink-0"
             >
               <Plus className="h-4 w-4" />
               New Session
             </Button>
           </div>
+
+          {/* Stats strip — always first, above the live-game card */}
+          <StatStrip
+            items={[
+              { label: "Games", value: totalSessions },
+              { label: "Live", value: activeSessions },
+              {
+                label: "Total pot",
+                value: `${totalPotValue.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}${currencySymbol}`,
+              },
+              {
+                label: "Avg pot",
+                value:
+                  averagePotValue > 0
+                    ? `${averagePotValue.toLocaleString(undefined, {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}${currencySymbol}`
+                    : "—",
+              },
+            ]}
+          />
 
           <ActiveSessionBanner
             activeSession={activeSession}
@@ -422,30 +445,6 @@ function HomePageInner() {
             </DialogContent>
           </Dialog>
 
-          {/* Stats strip — layout_guide.md §2: neutral facts share one row */}
-          <StatStrip
-            items={[
-              { label: "Games", value: totalSessions },
-              { label: "Live", value: activeSessions },
-              {
-                label: "Total pot",
-                value: `${totalPotValue.toLocaleString(undefined, {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}${currencySymbol}`,
-              },
-              {
-                label: "Avg pot",
-                value:
-                  averagePotValue > 0
-                    ? `${averagePotValue.toLocaleString(undefined, {
-                        minimumFractionDigits: 1,
-                        maximumFractionDigits: 1,
-                      })}${currencySymbol}`
-                    : "—",
-              },
-            ]}
-          />
 
           {/* Recent Sessions */}
           <div className="space-y-4">
@@ -502,21 +501,6 @@ function HomePageInner() {
           </div>
         </div>
       </div>
-
-      {/* Mobile primary CTA — the only gradient-green button on small screens */}
-      <StickyCta>
-        <Button
-          size="lg"
-          className="w-full gap-2"
-          onClick={() => {
-            setSessionName(formatDateDDMMYYYY(new Date()))
-            setShowCreateDialog(true)
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          New Session
-        </Button>
-      </StickyCta>
     </AppShell>
   )
 }
