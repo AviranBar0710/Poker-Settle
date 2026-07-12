@@ -14,10 +14,10 @@ export function OddsDisplay({ result }: OddsDisplayProps) {
     <div className="min-h-[40px] flex flex-col items-center justify-center mt-1">
       {result ? (
         <>
-          <span className="text-lg font-bold text-white leading-tight">
+          <span className="text-lg font-bold text-primary leading-tight tabular-nums">
             {formatPct(result.win)}% Win
           </span>
-          <span className="text-xs text-white/70 leading-tight">
+          <span className="text-xs text-muted-foreground leading-tight tabular-nums">
             {formatPct(result.tie)}% Tie
           </span>
         </>

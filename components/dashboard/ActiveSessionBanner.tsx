@@ -4,7 +4,8 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Play, Users, Coins, Clock } from "lucide-react"
+import { StatStrip } from "@/components/ui/stat-strip"
+import { Play } from "lucide-react"
 import { getCurrencySymbol } from "@/lib/currency"
 import { formatNumber } from "@/lib/utils"
 import type { Session } from "@/types/session"
@@ -23,12 +24,20 @@ function getElapsedTime(createdAt: string): string {
   const hours = Math.floor(diffMs / (1000 * 60 * 60))
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
 
+  if (hours >= 48) {
+    return `${Math.floor(hours / 24)}d`
+  }
   if (hours > 0) {
     return `${hours}h ${minutes}m`
   }
   return `${minutes}m`
 }
 
+/**
+ * Dashboard hero (layout_guide.md §2): when a live game exists this is the
+ * screen's single hero card — largest type, spade watermark, inset tiles,
+ * full-width primary CTA inside the card.
+ */
 export function ActiveSessionBanner({
   activeSession,
   playerCount,
@@ -57,46 +66,44 @@ export function ActiveSessionBanner({
   const sym = getCurrencySymbol(activeSession.currency)
 
   return (
-    <Card className="border-primary/30 bg-primary/5 shadow-sm">
-      <CardContent className="py-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex-1 min-w-0 space-y-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="default" className="bg-green-600 hover:bg-green-600 text-white text-xs font-medium gap-1">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
-                </span>
-                Live
-              </Badge>
-              <h3 className="text-lg font-bold truncate">{activeSession.name}</h3>
-            </div>
-
-            <div className="flex items-center gap-4 flex-wrap text-sm text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <Users className="h-4 w-4" />
-                {playerCount} {playerCount === 1 ? "Player" : "Players"}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Coins className="h-4 w-4" />
-                <span className="font-mono font-medium text-foreground">
-                  {sym}{formatNumber(totalPot, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                </span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                {elapsed}
-              </span>
-            </div>
-          </div>
-
-          <Link href={`/session/${activeSession.id}`} className="shrink-0">
-            <Button size="lg" className="gap-2 w-full sm:w-auto min-w-[160px] text-base font-semibold">
-              <Play className="h-4 w-4" />
-              Resume Session
-            </Button>
-          </Link>
+    <Card className="overflow-hidden border-primary/30">
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -bottom-10 -right-3 select-none text-[150px] leading-none text-primary/5 -rotate-12"
+      >
+        ♠
+      </span>
+      <CardContent className="relative p-5 space-y-4">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="min-w-0 flex-1 truncate text-lg font-bold">
+            {activeSession.name}
+          </h3>
+          <Badge variant="live" className="shrink-0 gap-1.5 text-xs font-bold">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75 motion-reduce:animate-none" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
+            </span>
+            Live
+          </Badge>
         </div>
+
+        <StatStrip
+          items={[
+            { label: "Players", value: playerCount },
+            {
+              label: "On table",
+              value: `${sym}${formatNumber(totalPot, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+            },
+            { label: "Elapsed", value: elapsed },
+          ]}
+        />
+
+        <Link href={`/session/${activeSession.id}`} className="block">
+          <Button size="lg" className="w-full gap-2 text-base font-semibold">
+            <Play className="h-4 w-4" />
+            Resume Session
+          </Button>
+        </Link>
       </CardContent>
     </Card>
   )

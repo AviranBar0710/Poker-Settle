@@ -41,9 +41,9 @@ export function FinalizationChecklist({
               )}
             >
               {item.ok ? (
-                <Check className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0" />
+                <Check className="h-5 w-5 text-success shrink-0" />
               ) : item.warning ? (
-                <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0" />
+                <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
               ) : (
                 <span className="w-5 h-5 rounded-full border-2 border-muted shrink-0" />
               )}

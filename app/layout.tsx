@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
+import "./theme.css"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { UIStateProvider } from "@/contexts/UIStateContext"
 import { ClubProvider } from "@/contexts/ClubContext"
@@ -25,8 +26,24 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning>
+        {/* Apply saved theme before paint — avoids a dark→light flash */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    var t = localStorage.getItem('theme');
+    var light = t === 'light' || (t === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches);
+    var el = document.documentElement;
+    el.classList.toggle('light', light);
+    el.classList.toggle('dark', !light);
+  } catch (e) {}
+})();
+            `.trim(),
+          }}
+        />
         {/* Catch "Load failed" / AuthRetryableFetchError before React mounts - prevents Next.js overlay */}
         <script
           dangerouslySetInnerHTML={{

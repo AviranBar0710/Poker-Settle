@@ -69,6 +69,8 @@ import {
 } from "@/components/ui/collapsible"
 import { PlayerActionsSheet } from "@/components/session/PlayerActionsSheet"
 import { StageBanner } from "@/components/session/StageBanner"
+import { PhaseProgress } from "@/components/session/PhaseProgress"
+import { StatStrip } from "@/components/ui/stat-strip"
 import { EmptyState } from "@/components/session/EmptyState"
 import { FinalizationChecklist } from "@/components/session/FinalizationChecklist"
 import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
@@ -733,100 +735,59 @@ function SessionPageInner() {
   return (
     <AppShell>
       <div className="min-h-screen bg-background overflow-x-hidden">
-        {/* Session Header - Workspace Context */}
+        {/* Session Header — layout_guide.md §6: name + badge, then stage progress; stats moved below */}
         <div className="sticky top-0 z-10 bg-background border-b">
-          <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-5 max-w-6xl">
-            {/* Mobile: Summary Card at top - min-w-0 + overflow-hidden prevent text overlap */}
-            <div className="md:hidden mb-4 overflow-hidden">
-              <Card className="bg-muted/50 border-muted">
-                <CardContent className="p-4">
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] overflow-hidden">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">Buy-ins</p>
-                      <p className="text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1">{getCurrencySymbol(session.currency)}{totalBuyins.toFixed(2)}</p>
-                    </div>
-                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] border-x border-border/50 overflow-hidden">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">Cash-outs</p>
-                      <p className="text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1">{getCurrencySymbol(session.currency)}{totalCashouts.toFixed(2)}</p>
-                    </div>
-                    <div className="min-w-0 flex flex-col items-center justify-center min-h-[60px] overflow-hidden">
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 shrink-0">P/L</p>
-                      <p
-                        className={cn(
-                          "text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1",
-                          totalProfitLoss > BALANCE_TOLERANCE
-                            ? "text-green-600 dark:text-green-500"
-                            : totalProfitLoss < -BALANCE_TOLERANCE
-                            ? "text-red-600 dark:text-red-500"
-                            : "text-muted-foreground"
-                        )}
-                      >
-                        {totalProfitLoss > 0 ? "+" : ""}
-                        {getCurrencySymbol(session.currency)}{totalProfitLoss.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4 max-w-6xl space-y-3">
+            <div className="flex items-center gap-3">
+              <h1 className="text-title font-bold tracking-tight truncate min-w-0 flex-1">{session.name}</h1>
+              {isFinalized ? (
+                <Badge variant="settled" className="shrink-0">Settled</Badge>
+              ) : (
+                <Badge variant="live" className="shrink-0 gap-1.5">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success opacity-75 motion-reduce:animate-none" />
+                    <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-success" />
+                  </span>
+                  Live
+                </Badge>
+              )}
             </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-              {/* Left: Session Info */}
-              <div className="flex-1 min-w-0">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                  <h1 className="text-title sm:text-hero font-bold tracking-tight truncate">{session.name}</h1>
-                  <Badge variant={isFinalized ? "default" : "secondary"} className="shrink-0 w-fit">
-                    {isFinalized ? "Finalized" : "Active"}
-                  </Badge>
-                </div>
-                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-1 sm:gap-2 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
-                  <span className="font-medium whitespace-nowrap">{getCurrencySymbol(session.currency)}</span>
-                  <span className="hidden sm:inline">•</span>
-                  <span className="hidden md:inline whitespace-nowrap">ID: {sessionId.slice(0, 8)}...</span>
-                  <span className="hidden sm:inline">•</span>
-                  <span className="whitespace-nowrap">Created {formatDateDDMMYYYY(session.createdAt)}</span>
-                  {isFinalized && session.finalizedAt && (
-                    <>
-                      <span className="hidden sm:inline">•</span>
-                      <span className="whitespace-nowrap">Finalized {formatDateDDMMYYYY(session.finalizedAt)}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Right: Quick Stats - Desktop only */}
-              <div className="hidden md:flex gap-4 sm:gap-6 shrink-0">
-                <div className="text-right min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Buy-ins</p>
-                  <p className="text-sm sm:text-base font-bold font-mono whitespace-nowrap">{getCurrencySymbol(session.currency)}{totalBuyins.toFixed(2)}</p>
-                </div>
-                <div className="text-right min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Cash-outs</p>
-                  <p className="text-sm sm:text-base font-bold font-mono whitespace-nowrap">{getCurrencySymbol(session.currency)}{totalCashouts.toFixed(2)}</p>
-                </div>
-                <div className="text-right min-w-0">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">P/L</p>
-                  <p
-                    className={cn(
-                      "text-sm sm:text-base font-bold font-mono whitespace-nowrap",
-                      totalProfitLoss > BALANCE_TOLERANCE
-                        ? "text-green-600 dark:text-green-500"
-                        : totalProfitLoss < -BALANCE_TOLERANCE
-                        ? "text-red-600 dark:text-red-500"
-                        : "text-muted-foreground"
-                    )}
-                  >
-                    {totalProfitLoss > 0 ? "+" : ""}
-                    {getCurrencySymbol(session.currency)}{totalProfitLoss.toFixed(2)}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p className="text-xs text-muted-foreground">
+              Created {formatDateDDMMYYYY(session.createdAt)}
+              {isFinalized && session.finalizedAt && (
+                <> · Settled {formatDateDDMMYYYY(session.finalizedAt)}</>
+              )}
+            </p>
+            <PhaseProgress phase={currentPhase} />
           </div>
         </div>
 
         {/* Main Workspace - Table-Based Layout */}
         <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 pb-48 md:pb-6 max-w-6xl space-y-6">
+          {/* Money strip — below the stage progress per layout_guide.md §6 */}
+          <StatStrip
+            items={[
+              {
+                label: "Buy-ins",
+                value: `${getCurrencySymbol(session.currency)}${totalBuyins.toFixed(2)}`,
+              },
+              {
+                label: "Cash-outs",
+                value: `${getCurrencySymbol(session.currency)}${totalCashouts.toFixed(2)}`,
+              },
+              {
+                label: "P/L",
+                value: `${totalProfitLoss > 0 ? "+" : ""}${getCurrencySymbol(session.currency)}${totalProfitLoss.toFixed(2)}`,
+                accent:
+                  totalProfitLoss > BALANCE_TOLERANCE
+                    ? "success"
+                    : totalProfitLoss < -BALANCE_TOLERANCE
+                      ? "danger"
+                      : undefined,
+              },
+            ]}
+          />
+
           {/* Error Display */}
           {error && (
             <Alert className="mb-4 border-destructive bg-destructive/10 text-destructive">
@@ -1005,8 +966,8 @@ function SessionPageInner() {
                   {winners.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-500" />
-                        <h3 className="text-sm font-semibold text-green-600 dark:text-green-500">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                        <h3 className="text-sm font-semibold text-success">
                           Winner ({winners.length})
                         </h3>
                       </div>
@@ -1014,17 +975,17 @@ function SessionPageInner() {
                         {winners.map((result) => (
                           <div
                             key={result.player.id}
-                            className="p-3 md:p-3 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900"
+                            className="p-3 md:p-3 bg-success/5 rounded-lg border border-success/25"
                           >
                             {/* Mobile: Vertical layout with dominant number */}
                             <div className="md:hidden space-y-2">
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
-                                <p className="text-lg font-bold font-mono text-green-600 dark:text-green-500">
+                                <p className="text-lg font-bold font-mono text-success">
                                   +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-green-200/50 dark:border-green-900/50">
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-success/15">
                                 <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
                                 <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
@@ -1032,7 +993,7 @@ function SessionPageInner() {
                             {/* Desktop: Original horizontal layout */}
                             <div className="hidden md:flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-success/15 text-success font-semibold text-sm">
                                 {result.player.name[0].toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1045,7 +1006,7 @@ function SessionPageInner() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-green-600 dark:text-green-500">
+                              <p className="text-sm font-semibold text-success">
                                 +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Winnings</p>
@@ -1115,8 +1076,8 @@ function SessionPageInner() {
                   {losers.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-500" />
-                        <h3 className="text-sm font-semibold text-red-600 dark:text-red-500">
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                        <h3 className="text-sm font-semibold text-destructive">
                           Owes ({losers.length})
                         </h3>
                       </div>
@@ -1124,17 +1085,17 @@ function SessionPageInner() {
                         {losers.map((result) => (
                           <div
                             key={result.player.id}
-                            className="p-3 md:p-3 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900"
+                            className="p-3 md:p-3 bg-destructive/5 rounded-lg border border-destructive/25"
                           >
                             {/* Mobile: Vertical layout with dominant number */}
                             <div className="md:hidden space-y-2">
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
-                                <p className="text-lg font-bold font-mono text-red-600 dark:text-red-500">
+                                <p className="text-lg font-bold font-mono text-destructive">
                                   {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-red-200/50 dark:border-red-900/50">
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-destructive/15">
                                 <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
                                 <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
@@ -1142,7 +1103,7 @@ function SessionPageInner() {
                             {/* Desktop: Original horizontal layout */}
                             <div className="hidden md:flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/15 text-destructive font-semibold text-sm">
                                 {result.player.name[0].toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1155,7 +1116,7 @@ function SessionPageInner() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-red-600 dark:text-red-500">
+                              <p className="text-sm font-semibold text-destructive">
                                 {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Losses</p>
@@ -1171,13 +1132,13 @@ function SessionPageInner() {
                   <div className="pt-4 border-t space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Winnings:</span>
-                      <span className="text-sm font-semibold text-green-600 dark:text-green-500">
+                      <span className="text-sm font-semibold text-success">
                         +{getCurrencySymbol(session.currency)}{totalWinnings.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Losses:</span>
-                      <span className="text-sm font-semibold text-red-600 dark:text-red-500">
+                      <span className="text-sm font-semibold text-destructive">
                         {getCurrencySymbol(session.currency)}{totalLosses.toFixed(2)}
                       </span>
                     </div>
@@ -1189,7 +1150,7 @@ function SessionPageInner() {
               <Card className="shadow-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <ArrowRight className="h-5 w-5 text-blue-500" />
+                    <ArrowRight className="h-5 w-5 text-primary" />
                     <CardTitle className="text-xl">Who Pays Whom</CardTitle>
                   </div>
                   <CardDescription className="mt-1">
@@ -1215,15 +1176,15 @@ function SessionPageInner() {
                           {/* Mobile: Clear single-line format */}
                           <div className="md:hidden space-y-3">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm shrink-0">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-destructive/15 text-destructive font-semibold text-sm shrink-0">
                                 {transfer.debtorName[0].toUpperCase()}
                               </div>
-                              <span className="text-base font-semibold text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                              <span className="text-base font-semibold text-destructive">{transfer.debtorName}</span>
                               <span className="text-sm text-muted-foreground">pays</span>
-                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm shrink-0">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-success/15 text-success font-semibold text-sm shrink-0">
                                 {transfer.creditorName[0].toUpperCase()}
                               </div>
-                              <span className="text-base font-semibold text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                              <span className="text-base font-semibold text-success">{transfer.creditorName}</span>
                             </div>
                             <div className="flex items-center justify-end pt-1 border-t border-border/50">
                               <span className="font-mono font-bold text-lg text-foreground">
@@ -1234,17 +1195,17 @@ function SessionPageInner() {
                           {/* Desktop: Original layout */}
                           <div className="hidden md:flex items-center gap-3">
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/15 text-destructive font-semibold text-sm">
                             {transfer.debtorName[0].toUpperCase()}
                           </div>
                           <span className="font-medium text-base">
-                            <span className="text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                            <span className="text-destructive">{transfer.debtorName}</span>
                             {" → "}
-                            <span className="text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                            <span className="text-success">{transfer.creditorName}</span>
                           </span>
                         </div>
                             <div className="flex items-center gap-2 shrink-0">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-success/15 text-success font-semibold text-sm">
                             {transfer.creditorName[0].toUpperCase()}
                           </div>
                               <span className="font-mono font-bold text-lg text-foreground whitespace-nowrap">
@@ -1265,8 +1226,8 @@ function SessionPageInner() {
 
           {/* Balance Warning (if needed) */}
           {hasCashouts && totalsDontBalance && (
-            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-              <AlertDescription className="text-amber-900 dark:text-amber-200">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-amber-200">
                 <strong>Note:</strong> Totals may not balance due to rake taken during play.
               </AlertDescription>
             </Alert>
@@ -1351,7 +1312,7 @@ function SessionPageInner() {
 
           {/* Mobile: Sticky Footer for Global Actions - show when finalized (Share etc) or when phase actions available */}
           {(hasCashouts || (canEdit && currentPhase === "chip_entry")) && (isFinalized || canEdit || (currentPhase === "ready_to_finalize" && !showSettlementDetails)) && (
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))] shadow-lg">
+            <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gradient-to-t from-background via-background/95 to-transparent px-4 pt-6 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))]">
               {!isFinalized ? (
                 <>
                   {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
@@ -1516,6 +1477,9 @@ function SessionPageInner() {
               currency={session.currency}
               currentBalance={currentBalance}
               recentAmounts={recentCashoutAmounts}
+              existingCashouts={transactions.filter(
+                (t) => t.playerId === addCashoutPlayer.id && t.type === "cashout"
+              )}
               onSuccess={() => {
                 reloadTransactions()
                 reloadPlayers()
@@ -1766,7 +1730,7 @@ function SessionPageInner() {
 
         {/* Mobile: Sticky Footer for Primary Actions - Add Player, Start Chip Entry (owner/admin only) */}
         {canEdit && !isFinalized && currentPhase !== "ready_to_finalize" && !(hasCashouts && currentPhase === "chip_entry") && (
-          <div className="fixed bottom-0 left-0 right-0 z-40 bg-background border-t md:hidden p-4 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))] shadow-lg">
+          <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gradient-to-t from-background via-background/95 to-transparent px-4 pt-6 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))]">
             {currentPhase === "active_game" ? (
               // Active game phase - 2 rows so all buttons fit on narrow screens
               <div className="space-y-2">
@@ -2100,9 +2064,9 @@ function ResultsStep({
             {playerResults.map((result) => {
               const plColor =
                 result.pl > BALANCE_TOLERANCE
-                  ? "text-green-600 dark:text-green-500"
+                  ? "text-success"
                   : result.pl < -BALANCE_TOLERANCE
-                  ? "text-red-600 dark:text-red-500"
+                  ? "text-destructive"
                   : "text-muted-foreground"
               return (
                 <Card key={result.player.id} className="border">
@@ -2149,9 +2113,9 @@ function ResultsStep({
                 {playerResults.map((result) => {
                   const plColor =
                     result.pl > BALANCE_TOLERANCE
-                      ? "text-green-600 dark:text-green-500"
+                      ? "text-success"
                       : result.pl < -BALANCE_TOLERANCE
-                      ? "text-red-600 dark:text-red-500"
+                      ? "text-destructive"
                       : "text-muted-foreground"
                   return (
                     <TableRow key={result.player.id} className="hover:bg-muted/50">
@@ -2176,8 +2140,8 @@ function ResultsStep({
           </div>
 
           {totalsDontBalance && (
-            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-              <AlertDescription className="text-amber-900 dark:text-amber-200">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-amber-200">
                 <strong>Note:</strong> Totals may not balance due to rake taken during play.
               </AlertDescription>
             </Alert>
@@ -2216,9 +2180,9 @@ function ResultsStep({
                       {index + 1}
                     </div>
                     <span className="font-medium text-base">
-                      <span className="text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                      <span className="text-destructive">{transfer.debtorName}</span>
                       {" pays "}
-                      <span className="text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                      <span className="text-success">{transfer.creditorName}</span>
                     </span>
                   </div>
                   <span className="font-mono font-bold text-lg">
@@ -2397,17 +2361,17 @@ function MobilePlayerCard({
   const sym = getCurrencySymbol(currency as CurrencyCode)
 
   return (
-    <Card
+    <div
       className={cn(
-        "shadow-sm",
-        isEditable && "cursor-pointer hover:bg-muted/50 active:bg-muted/70",
+        "rounded-tile border bg-background/45",
+        isEditable && "cursor-pointer transition-transform active:scale-[0.985]",
         isMissingBuyin && "border-l-4 border-l-amber-500"
       )}
       {...(longPressHandlers || {
         onClick: () => isEditable && onRowClick(result.player.id),
       })}
     >
-      <CardContent className="px-3 py-2.5 space-y-0.5">
+      <div className="px-3 py-2.5 space-y-0.5">
         {/* Row 1: Name + identity badge left, 3-dots right */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 min-w-0">
@@ -2459,7 +2423,7 @@ function MobilePlayerCard({
               {showPL ? `${result.pl > 0 ? "+" : ""}${sym}${result.pl.toFixed(2)}` : "—"}
             </span>
             {!isMissingBuyin && result.totalBuyins > 0 && (
-              <Check className="h-4 w-4 text-green-600 dark:text-green-500 shrink-0" />
+              <Check className="h-4 w-4 text-success shrink-0" />
             )}
           </div>
         </div>
@@ -2495,8 +2459,8 @@ function MobilePlayerCard({
             </Button>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 
@@ -2552,8 +2516,8 @@ function PlayersTable({
 
   const getPLColor = (pl: number, showPL: boolean) => {
     if (!showPL) return "text-muted-foreground/50"
-    if (pl > BALANCE_TOLERANCE) return "text-green-600 dark:text-green-500"
-    if (pl < -BALANCE_TOLERANCE) return "text-red-600 dark:text-red-500"
+    if (pl > BALANCE_TOLERANCE) return "text-success"
+    if (pl < -BALANCE_TOLERANCE) return "text-destructive"
     return "text-muted-foreground"
   }
 
@@ -2656,7 +2620,7 @@ function PlayersTable({
                           <div className="flex items-center gap-2">
                             <span>{result.player.name}</span>
                             {isMissingBuyin && (
-                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-500 border-amber-500/30">
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/30">
                                 No buy-in
                               </Badge>
                             )}
@@ -2793,6 +2757,11 @@ function EditPlayerDialog({
   const [editBuyinAmount, setEditBuyinAmount] = useState("")
   const [isSavingBuyinEdit, setIsSavingBuyinEdit] = useState(false)
 
+  // State for editing cash-outs (mirror of buy-in editing)
+  const [editingCashoutId, setEditingCashoutId] = useState<string | null>(null)
+  const [editCashoutAmount, setEditCashoutAmount] = useState("")
+  const [isSavingCashoutEdit, setIsSavingCashoutEdit] = useState(false)
+
   // Sync player name when player prop changes
   useEffect(() => {
     if (player) {
@@ -2826,16 +2795,16 @@ function EditPlayerDialog({
   
   const plColor =
     currentPL > BALANCE_TOLERANCE
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : currentPL < -BALANCE_TOLERANCE
-      ? "text-red-600 dark:text-red-500"
+      ? "text-destructive"
       : "text-muted-foreground"
 
   const previewPLColor =
     previewPL > BALANCE_TOLERANCE
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : previewPL < -BALANCE_TOLERANCE
-      ? "text-red-600 dark:text-red-500"
+      ? "text-destructive"
       : "text-muted-foreground"
 
   // Handle updating player name
@@ -2934,6 +2903,74 @@ function EditPlayerDialog({
     } catch (err) {
       console.error("Unexpected error deleting buy-in:", err)
       setPlayerError("Failed to delete buy-in. Please try again.")
+    }
+  }
+
+  const handleStartEditCashout = (cashout: Transaction) => {
+    setEditingCashoutId(cashout.id)
+    setEditCashoutAmount(cashout.amount.toString())
+    setPlayerError(null)
+  }
+
+  const handleCancelEditCashout = () => {
+    setEditingCashoutId(null)
+    setEditCashoutAmount("")
+    setPlayerError(null)
+  }
+
+  const handleSaveCashoutEdit = async (cashoutId: string) => {
+    const newAmount = parseFloat(editCashoutAmount)
+    if (isNaN(newAmount) || newAmount < 0) {
+      setPlayerError("Please enter a valid amount")
+      return
+    }
+
+    setIsSavingCashoutEdit(true)
+    setPlayerError(null)
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ amount: newAmount })
+        .eq("id", cashoutId)
+
+      if (error) {
+        console.error("Error updating cash-out:", error)
+        setPlayerError(`Failed to update cash-out: ${error.message}`)
+      } else {
+        setPlayerError(null)
+        setEditingCashoutId(null)
+        setEditCashoutAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error updating cash-out:", err)
+      setPlayerError("Failed to update cash-out. Please try again.")
+    } finally {
+      setIsSavingCashoutEdit(false)
+    }
+  }
+
+  const handleDeleteCashout = async (cashout: Transaction) => {
+    if (!window.confirm(`Delete cash-out of ${currency} ${cashout.amount.toFixed(2)}?`)) return
+
+    setPlayerError(null)
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", cashout.id)
+
+      if (error) {
+        console.error("Error deleting cash-out:", error)
+        setPlayerError(`Failed to delete cash-out: ${error.message}`)
+      } else {
+        setEditingCashoutId(null)
+        setEditCashoutAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error deleting cash-out:", err)
+      setPlayerError("Failed to delete cash-out. Please try again.")
     }
   }
 
@@ -3104,8 +3141,8 @@ function EditPlayerDialog({
           {/* Success overlay */}
           {showSuccess && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 rounded-t-2xl animate-in fade-in duration-200">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                <Check className="h-8 w-8 text-green-600" />
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-success/10 mb-4">
+                <Check className="h-8 w-8 text-success" />
               </div>
               <p className="text-lg font-semibold text-foreground">
                 {batchAddSuccessCount === 1 ? "Player Added" : `${batchAddSuccessCount} Players Added`}
@@ -3402,6 +3439,87 @@ function EditPlayerDialog({
                 <p className="text-xs text-muted-foreground italic">
                   Cash-outs will be available when you start chip entry
                 </p>
+              )}
+
+              {/* Existing Cash-outs List - edit/delete to fix manager mistakes */}
+              {(currentPhase === "chip_entry" || currentPhase === "ready_to_finalize" || currentPhase === "finalized") && cashouts.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs font-medium text-muted-foreground">Existing Cash-outs:</p>
+                  {cashouts.map((cashout) => (
+                    <div key={cashout.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded border">
+                      {editingCashoutId === cashout.id ? (
+                        <>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={editCashoutAmount}
+                            onChange={(e) => setEditCashoutAmount(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleSaveCashoutEdit(cashout.id)
+                              } else if (e.key === "Escape") {
+                                handleCancelEditCashout()
+                              }
+                            }}
+                            min="0"
+                            step="0.01"
+                            className="flex-1 h-8 text-sm"
+                            autoFocus={false}
+                            disabled={isSavingCashoutEdit}
+                          />
+                          <Button
+                            onClick={() => handleSaveCashoutEdit(cashout.id)}
+                            size="sm"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={handleCancelEditCashout}
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete cash-out"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm font-mono">{currency} {cashout.amount.toFixed(2)}</span>
+                          <Button
+                            onClick={() => handleStartEditCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete cash-out"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
 
               {/* Add Cash-out - Available in Chip Entry, Ready to Finalize, and Finalized (admin only) */}

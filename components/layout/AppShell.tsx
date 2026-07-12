@@ -1,117 +1,26 @@
 "use client"
 
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, Plus, ChevronDown, Copy, Check, UserCog, UserPlus, Link2, Calculator } from "lucide-react"
+import { Home, BarChart3, History, LogOut, User, LogIn, Menu, X, Users, ChevronRight, Calculator } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/contexts/AuthContext"
 import { useUIState } from "@/contexts/UIStateContext"
 import { useClub } from "@/contexts/ClubContext"
-import { useIsDesktop } from "@/hooks/useIsDesktop"
-import { useState, useEffect, useRef } from "react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useState, useEffect } from "react"
 import { LoginDialog } from "@/components/LoginDialog"
 
 interface AppShellProps {
   children: React.ReactNode
 }
 
-function JoinCodeCopyRow({ joinCode }: { joinCode: string }) {
-  const [copied, setCopied] = useState(false)
-  const [fallbackMode, setFallbackMode] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const showCopiedFeedback = () => {
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
-
-  const handleCopy = async (e: React.MouseEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    try {
-      await navigator.clipboard.writeText(joinCode)
-      showCopiedFeedback()
-      return
-    } catch {
-      /* clipboard failed */
-    }
-    try {
-      const input = inputRef.current
-      if (input) {
-        input.focus()
-        input.select()
-        input.setSelectionRange(0, joinCode.length)
-        const ok = document.execCommand("copy")
-        if (ok) {
-          showCopiedFeedback()
-          return
-        }
-      }
-    } catch {
-      /* execCommand fallback failed */
-    }
-    setFallbackMode(true)
-  }
-
-  return (
-    <div className="px-4 py-3 border-b flex flex-col gap-2 bg-muted/30">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Join Code</p>
-      <div className="flex items-center gap-2 flex-wrap">
-        <input
-          ref={inputRef}
-          readOnly
-          value={joinCode}
-          aria-label="Club join code"
-          className="font-mono text-sm font-semibold px-2.5 py-1.5 rounded-full bg-muted border border-border w-auto min-w-0 max-w-[180px] touch-manipulation outline-none focus:ring-0"
-        />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="shrink-0 min-h-[44px] min-w-[44px] h-10 w-10 p-0 touch-manipulation"
-          onClick={handleCopy}
-          type="button"
-          aria-label={copied ? "Copied" : "Copy join code"}
-        >
-          {copied ? (
-            <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium" role="status">
-              <Check className="h-4 w-4 shrink-0" />
-              Copied
-            </span>
-          ) : (
-            <Copy className="h-4 w-4 text-muted-foreground" />
-          )}
-        </Button>
-      </div>
-      {fallbackMode && (
-        <p className="text-xs text-muted-foreground">Tap and hold to copy</p>
-      )}
-    </div>
-  )
-}
-
 export function AppShell({ children }: AppShellProps) {
   const pathname = usePathname()
-  const router = useRouter()
   const { user, loading } = useAuth()
-  const { activeClub, clubs, loading: clubsLoading, setActiveClub, createClub } = useClub()
+  const { activeClub, clubs, loading: clubsLoading } = useClub()
   const { isSidebarOpen, openSidebar, closeSidebar, closeAllOverlays } = useUIState()
-  const isDesktop = useIsDesktop()
   const [showLoginDialog, setShowLoginDialog] = useState(false)
-  const [showClubSwitcher, setShowClubSwitcher] = useState(false)
-  const [showCreateClubDialog, setShowCreateClubDialog] = useState(false)
-  const [newClubName, setNewClubName] = useState("")
-  const [isCreatingClub, setIsCreatingClub] = useState(false)
 
   // Sync login dialog with UI state (close other overlays when login dialog opens)
   useEffect(() => {
@@ -221,125 +130,33 @@ export function AppShell({ children }: AppShellProps) {
           </h1>
         </div>
 
-        {/* Club Switcher (only when logged in and has at least one club; hidden during onboarding) */}
+        {/* Active club — navigates to the dedicated /clubs screen (switch, manage, join, create) */}
         {user && !clubsLoading && clubs.length > 0 && (
           <div className="px-4 pt-4 pb-2 border-b">
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full justify-between text-left font-normal"
-                onClick={() => setShowClubSwitcher(!showClubSwitcher)}
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="truncate text-sm">
-                    {activeClub ? activeClub.name : "Select Club"}
-                  </span>
-                </div>
-                <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", showClubSwitcher && "rotate-180")} />
-              </Button>
-              
-              {showClubSwitcher && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-background border rounded-lg shadow-lg z-50 max-h-64 overflow-y-auto">
-                  {/* Join Code (owner/admin only) */}
-                  {activeClub && (activeClub.role === "owner" || activeClub.role === "admin") && activeClub.joinCode && (
-                    <JoinCodeCopyRow joinCode={activeClub.joinCode} />
-                  )}
-                  {clubs.map((club) => (
-                    <button
-                      key={club.id}
-                      onClick={async (e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        
-                        const previousClubId = activeClub?.id
-                        const isOnSessionPage = pathname?.startsWith("/session/")
-                        
-                        if (isOnSessionPage && previousClubId !== club.id) {
-                          router.push("/sessions")
-                        }
-                        
-                        await setActiveClub(club.id)
-                        setShowClubSwitcher(false)
-                        closeSidebar()
-                        
-                        if (isOnSessionPage && previousClubId !== club.id) {
-                          setTimeout(() => {
-                            if (pathname?.startsWith("/session/")) {
-                              router.push("/sessions")
-                            }
-                          }, 100)
-                        }
-                      }}
-                      className={cn(
-                        "w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors",
-                        activeClub?.id === club.id && "bg-primary/10 text-primary font-medium"
-                      )}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="truncate">{club.name}</span>
-                        {club.role === "owner" && (
-                          <Badge variant="secondary" className="ml-2 text-xs">Owner</Badge>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  <div className="border-t mt-1 space-y-0">
-                    {(activeClub?.role === "owner" || activeClub?.role === "admin") && (
-                      <>
-                        <Link
-                          href="/club/members"
-                          onClick={() => {
-                            setShowClubSwitcher(false)
-                            closeSidebar()
-                          }}
-                          className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
-                        >
-                          <UserCog className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          Manage members
-                        </Link>
-                        {activeClub?.slug === "base44" && (
-                          <Link
-                            href="/club/link-players"
-                            onClick={() => {
-                              setShowClubSwitcher(false)
-                              closeSidebar()
-                            }}
-                            className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left"
-                          >
-                            <Link2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            Link players
-                          </Link>
-                        )}
-                      </>
-                    )}
-                    <Link
-                      href="/join"
-                      onClick={() => {
-                        setShowClubSwitcher(false)
-                        closeSidebar()
-                      }}
-                      className="flex items-center gap-2 w-full px-4 py-2 text-sm hover:bg-accent transition-colors text-left text-primary"
-                    >
-                      <UserPlus className="h-4 w-4 shrink-0" />
-                      Join a club
-                    </Link>
-                    <button
-                      onClick={() => {
-                        setShowClubSwitcher(false)
-                        closeSidebar()
-                        setShowCreateClubDialog(true)
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-accent transition-colors flex items-center gap-2 text-primary"
-                    >
-                      <Plus className="h-4 w-4" />
-                      Create New Club
-                    </button>
-                  </div>
-                </div>
+            <Link
+              href="/clubs"
+              onClick={closeSidebar}
+              className={cn(
+                "flex items-center gap-2.5 w-full rounded-tile border px-3 py-2 text-sm transition-colors hover:bg-accent",
+                pathname === "/clubs" && "border-primary/40 bg-primary/10"
               )}
-            </div>
+            >
+              <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="flex-1 min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Club
+                </span>
+                <span
+                  className={cn(
+                    "block truncate font-semibold text-foreground",
+                    pathname === "/clubs" && "text-primary"
+                  )}
+                >
+                  {activeClub ? activeClub.name : "Select Club"}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            </Link>
           </div>
         )}
 
@@ -427,108 +244,6 @@ export function AppShell({ children }: AppShellProps) {
           onClose={closeAllOverlays}
         />
 
-        {/* Create Club Dialog */}
-        <Dialog 
-          open={showCreateClubDialog} 
-          onOpenChange={(open) => {
-            setShowCreateClubDialog(open)
-            if (!open) {
-              setNewClubName("")
-            }
-          }}
-        >
-          <DialogContent 
-            className="!z-[120] !flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
-            onOpenAutoFocus={(e) => {
-              if (!isDesktop) {
-                e.preventDefault()
-              }
-            }}
-          >
-            <form 
-              onSubmit={async (e) => {
-                e.preventDefault()
-                if (!newClubName.trim()) return
-                setIsCreatingClub(true)
-                const isOnSessionPage = pathname?.startsWith("/session/")
-                
-                // If creating a new club while on a session page, redirect immediately
-                if (isOnSessionPage) {
-                  router.push("/sessions")
-                }
-                
-                const club = await createClub(newClubName.trim())
-                if (club) {
-                  await setActiveClub(club.id)
-                  setShowCreateClubDialog(false)
-                  setNewClubName("")
-                  
-                  // Double-check redirect in case router.push didn't work immediately
-                  if (isOnSessionPage) {
-                    setTimeout(() => {
-                      if (pathname?.startsWith("/session/")) {
-                        router.push("/sessions")
-                      }
-                    }, 100)
-                  }
-                }
-                setIsCreatingClub(false)
-              }} 
-              className="flex flex-col h-full min-h-0"
-            >
-              <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b md:border-b-0 md:p-0 md:pb-0">
-                <DialogHeader className="md:text-left">
-                  <DialogTitle className="text-xl md:text-lg font-semibold">Create New Club</DialogTitle>
-                  <DialogDescription className="text-sm mt-1.5 text-muted-foreground md:mt-0">
-                    Create a new club to organize your poker sessions.
-                  </DialogDescription>
-                </DialogHeader>
-              </div>
-
-              <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 md:flex-none md:min-h-auto md:overflow-visible md:p-0">
-                <div className="space-y-2">
-                  <Label htmlFor="club-name" className="text-sm font-semibold block text-foreground">
-                    Club Name
-                  </Label>
-                  <Input
-                    id="club-name"
-                    type="text"
-                    placeholder="e.g., Friday Night Game Club"
-                    value={newClubName}
-                    onChange={(e) => setNewClubName(e.target.value)}
-                    disabled={isCreatingClub}
-                    className="h-12 md:h-10 text-base md:text-sm"
-                    autoFocus={false}
-                  />
-                </div>
-              </div>
-
-              <div className="flex-shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 border-t bg-background md:border-t-0 md:bg-transparent md:p-0 md:pt-4 md:pb-0">
-                <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:gap-2">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setShowCreateClubDialog(false)
-                      setNewClubName("")
-                    }}
-                    disabled={isCreatingClub}
-                    className="h-11 md:h-10 order-2 md:order-1 text-base md:text-sm"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isCreatingClub || !newClubName.trim()}
-                    className="h-12 md:h-10 order-1 md:order-2 md:min-w-[140px] text-base md:text-sm font-medium"
-                  >
-                    {isCreatingClub ? "Creating..." : "Create Club"}
-                  </Button>
-                </div>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </aside>
 
       {/* Main Content */}

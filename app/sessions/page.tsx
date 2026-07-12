@@ -4,16 +4,12 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { AppShell } from "@/components/layout/AppShell"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { getCurrencySymbol } from "@/lib/currency"
-import { formatDateDDMMYYYY } from "@/lib/utils"
+import { SessionCard } from "@/components/dashboard/SessionCard"
 import { Session } from "@/types/session"
-import { Transaction } from "@/types/transaction"
-import Link from "next/link"
-import { Calendar, Eye } from "lucide-react"
 import { useClub } from "@/contexts/ClubContext"
+import { cn } from "@/lib/utils"
 
 type SessionWithPL = Session & {
   totalBuyins: number
@@ -22,11 +18,16 @@ type SessionWithPL = Session & {
   playerCount: number
 }
 
+type SessionFilter = "all" | "live" | "settled"
+
+const FILTERS: SessionFilter[] = ["all", "live", "settled"]
+
 export default function SessionsHistoryPage() {
   const router = useRouter()
   const { activeClubId } = useClub()
   const [sessions, setSessions] = useState<SessionWithPL[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [filter, setFilter] = useState<SessionFilter>("all")
 
   useEffect(() => {
     if (!activeClubId) {
@@ -37,13 +38,13 @@ export default function SessionsHistoryPage() {
 
     const loadSessions = async () => {
       try {
-        // Load finalized sessions only (RLS will filter by club automatically, but explicit for clarity)
+        // All club sessions (live + settled); pills filter client-side —
+        // data-contract change sanctioned by layout_guide.md §4.
         const { data: sessionsData, error: sessionsError } = await supabase
           .from("sessions")
           .select("*")
           .eq("club_id", activeClubId)
-          .not("finalized_at", "is", null)
-          .order("finalized_at", { ascending: false })
+          .order("created_at", { ascending: false })
 
         if (sessionsError) {
           console.error("Error loading sessions:", sessionsError)
@@ -111,100 +112,83 @@ export default function SessionsHistoryPage() {
     loadSessions()
   }, [activeClubId])
 
+  const visibleSessions = useMemo(() => {
+    if (filter === "live") return sessions.filter((s) => !s.finalizedAt)
+    if (filter === "settled") return sessions.filter((s) => s.finalizedAt)
+    return sessions
+  }, [sessions, filter])
+
+  const emptyCopy =
+    filter === "live"
+      ? "No live games right now"
+      : filter === "settled"
+      ? "No settled games yet"
+      : "No games yet"
+
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
+      <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6">
           {/* Page Header */}
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Session History</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">
-              Review your completed poker sessions
-            </p>
+          <h1 className="text-2xl font-bold tracking-tight">Games</h1>
+
+          {/* Filter pills — layout_guide.md §4 */}
+          <div className="flex gap-2">
+            {FILTERS.map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilter(f)}
+                className={cn(
+                  "rounded-full border px-4 py-1.5 text-sm font-semibold capitalize transition-colors",
+                  filter === f
+                    ? "border-primary/40 bg-primary/15 text-primary"
+                    : "text-muted-foreground"
+                )}
+              >
+                {f}
+              </button>
+            ))}
           </div>
 
           {isLoading ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center">
-                  <p className="text-muted-foreground">Loading session history...</p>
+                  <p className="text-muted-foreground">Loading games…</p>
                 </div>
               </CardContent>
             </Card>
-          ) : sessions.length === 0 ? (
+          ) : visibleSessions.length === 0 ? (
             <Card>
               <CardContent className="py-12">
                 <div className="text-center space-y-4">
                   <div className="text-4xl">📋</div>
                   <div className="space-y-2">
-                    <p className="text-lg font-medium">No completed sessions</p>
-                    <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                      Finalized sessions will appear here. Complete a session to see it in your history.
-                    </p>
+                    <p className="text-lg font-medium">{emptyCopy}</p>
+                    {filter === "all" && (
+                      <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                        Create a session from the dashboard to start tracking
+                        buy-ins, cash-outs, and settlements.
+                      </p>
+                    )}
                   </div>
-                  <Button onClick={() => router.push("/")} variant="outline" className="gap-2">
-                    Go to Dashboard
-                  </Button>
+                  {filter === "all" && (
+                    <Button onClick={() => router.push("/")} variant="outline" className="gap-2">
+                      Go to Dashboard
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4 min-w-0 overflow-hidden">
-              {sessions.map((session) => (
-                <Card key={session.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      {/* Left: Session Info */}
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                          <h3 className="text-lg sm:text-xl font-semibold truncate">{session.name}</h3>
-                          <Badge variant="default" className="shrink-0 w-fit">
-                            Finalized
-                          </Badge>
-                        </div>
-
-                        {/* Primary info: Created at, Currency, Total buy-in, Players */}
-                        {(() => {
-                          const sym = getCurrencySymbol(session.currency)
-                          return (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Calendar className="h-4 w-4 shrink-0" />
-                                <span>{formatDateDDMMYYYY(session.createdAt)}</span>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Currency</p>
-                                <p className="text-sm font-mono font-semibold">{sym}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total buy-in</p>
-                                <p className="text-sm font-mono font-semibold">
-                                  {sym}{session.totalBuyins.toFixed(0)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Players</p>
-                                <p className="text-sm font-mono font-semibold">
-                                  {session.playerCount ?? 0} {(session.playerCount ?? 0) === 1 ? "Player" : "Players"}
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </div>
-
-                      {/* Right: Action */}
-                      <div className="shrink-0 w-full sm:w-auto">
-                        <Link href={`/session/${session.id}`} className="block">
-                          <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
-                            <Eye className="h-4 w-4" />
-                            View Session
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
+              {visibleSessions.map((session) => (
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  playerCount={session.playerCount ?? 0}
+                  totalBuyins={session.totalBuyins}
+                />
               ))}
             </div>
           )}
@@ -213,4 +197,3 @@ export default function SessionsHistoryPage() {
     </AppShell>
   )
 }
-

@@ -4,15 +4,14 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/layout/AppShell"
 import { LoginGate } from "@/components/LoginGate"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
-import { cn, formatDateDDMMYYYY } from "@/lib/utils"
+import { formatDateDDMMYYYY } from "@/lib/utils"
 import Link from "next/link"
 import {
   Dialog,
@@ -26,6 +25,8 @@ import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
 import { ActiveSessionBanner } from "@/components/dashboard/ActiveSessionBanner"
+import { SessionCard } from "@/components/dashboard/SessionCard"
+import { StatStrip } from "@/components/ui/stat-strip"
 
 export default function HomePage() {
   return (
@@ -289,28 +290,47 @@ function HomePageInner() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
+      <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-          {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Overview of your poker sessions
-              </p>
-            </div>
+          {/* Page Header — New Session always top-right */}
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <Button
               onClick={() => {
                 setSessionName(formatDateDDMMYYYY(new Date()))
                 setShowCreateDialog(true)
               }}
-              size="lg"
-              className="gap-2 w-full sm:w-auto"
+              className="gap-1.5 shrink-0"
             >
               <Plus className="h-4 w-4" />
               New Session
             </Button>
           </div>
+
+          {/* Stats strip — always first, above the live-game card */}
+          <StatStrip
+            items={[
+              { label: "Games", value: totalSessions },
+              { label: "Live", value: activeSessions },
+              {
+                label: "Total pot",
+                value: `${totalPotValue.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}${currencySymbol}`,
+              },
+              {
+                label: "Avg pot",
+                value:
+                  averagePotValue > 0
+                    ? `${averagePotValue.toLocaleString(undefined, {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}${currencySymbol}`
+                    : "—",
+              },
+            ]}
+          />
 
           <ActiveSessionBanner
             activeSession={activeSession}
@@ -331,7 +351,7 @@ function HomePageInner() {
             }}
           >
             <DialogContent 
-              className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
+              className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-card !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-card rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-card"
               onOpenAutoFocus={(e) => {
                 if (!isDesktop) {
                   e.preventDefault()
@@ -425,90 +445,14 @@ function HomePageInner() {
             </DialogContent>
           </Dialog>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Sessions
-                    </p>
-                    <p className="text-2xl font-bold mt-1">{totalSessions}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Active Sessions
-                    </p>
-                    <p className="text-2xl font-bold mt-1">{activeSessions}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Pot Value
-                    </p>
-                    <p className="text-2xl font-bold mt-1">
-                      {totalPotValue.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                      {currencySymbol}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Average Session
-                    </p>
-                    <p className="text-2xl font-bold mt-1">
-                      {averagePotValue > 0
-                        ? `${averagePotValue.toLocaleString(undefined, {
-                            minimumFractionDigits: 1,
-                            maximumFractionDigits: 1,
-                          })}${currencySymbol}`
-                        : "—"}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <TrendingDown className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
 
           {/* Recent Sessions */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight">Recent Sessions</h2>
+              <h2 className="text-base font-semibold">Recent games</h2>
+              <Link href="/sessions" className="text-sm font-medium text-primary">
+                See all →
+              </Link>
             </div>
 
             {isLoadingSessions ? (
@@ -538,55 +482,20 @@ function HomePageInner() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
-                {recentSessions.map((session) => (
-                  <Card
-                    key={session.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg truncate">
-                            {session.name}
-                          </CardTitle>
-                          <CardDescription className="mt-1">
-                            {formatDateDDMMYYYY(session.createdAt)}
-                          </CardDescription>
-                        </div>
-                        <Badge
-                          variant={session.finalizedAt ? "default" : "secondary"}
-                          className="ml-2 shrink-0"
-                        >
-                          {session.finalizedAt ? "Finalized" : "Active"}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-sm text-muted-foreground">
-                            {players.filter((p) => p.session_id === session.id).length} Player
-                            {players.filter((p) => p.session_id === session.id).length !== 1 ? "s" : ""}
-                          </span>
-                          <span className="text-sm font-medium font-mono">
-                            {(() => {
-                              const sym = getCurrencySymbol(session.currency)
-                              const total = transactions
-                                .filter((t) => t.sessionId === session.id && t.type === "buyin")
-                                .reduce((s, t) => s + t.amount, 0)
-                              return `${total.toFixed(0)}${sym}`
-                            })()}
-                          </span>
-                        </div>
-                        <Link href={`/session/${session.id}`} className="shrink-0">
-                          <Button variant="outline" size="sm">
-                            {session.finalizedAt ? "View" : "Continue"}
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {recentSessions.map((session) => {
+                  const sessionBuyins = transactions.filter(
+                    (t) => t.sessionId === session.id && t.type === "buyin"
+                  )
+                  return (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      playerCount={players.filter((p) => p.session_id === session.id).length}
+                      totalBuyins={sessionBuyins.reduce((s, t) => s + t.amount, 0)}
+                      buyinCount={sessionBuyins.length}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

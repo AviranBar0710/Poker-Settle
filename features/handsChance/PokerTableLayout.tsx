@@ -1,6 +1,5 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { PlayerSeat } from "./PlayerSeat"
 import { CardSlot } from "./CardSlot"
 import type { SelectedSlot, PlayerResult } from "./types"
@@ -12,7 +11,6 @@ interface PokerTableLayoutProps {
   results: PlayerResult[]
   onPlayerSeatClick: (playerIndex: number) => void
   onSlotClick: (slot: SelectedSlot) => void
-  onReset?: () => void
 }
 
 export function PokerTableLayout({
@@ -22,42 +20,26 @@ export function PokerTableLayout({
   results,
   onPlayerSeatClick,
   onSlotClick,
-  onReset,
 }: PokerTableLayoutProps) {
   const getResultForPlayer = (playerIndex: number) =>
     results.find((r) => r.playerIndex === playerIndex)
 
   return (
     <div className="w-full max-w-md mx-auto min-h-[520px] max-h-full">
-      {/* Table surface */}
-      <div
-        className="relative rounded-[44px] overflow-hidden min-h-[520px] w-full"
-        style={{
-          background:
-            "radial-gradient(ellipse 110% 80% at 50% 50%, #1a7d3e 0%, #0d5c2e 35%, #0a4d2e 60%, #062d1a 100%)",
-          boxShadow:
-            "inset 0 0 80px rgba(0,0,0,0.35), 0 0 50px rgba(10,77,46,0.5), 0 10px 40px rgba(0,0,0,0.4)",
-        }}
-      >
-        {/* Inner border (casino rail) */}
+      {/* Table area — dark, no felt: subtle oval rail + spade ornament (reference) */}
+      <div className="relative min-h-[520px] w-full">
+        {/* Oval rail */}
         <div
-          className="absolute inset-4 rounded-[36px] border-[3px] border-amber-900/35 pointer-events-none"
-          style={{ boxShadow: "inset 0 0 24px rgba(0,0,0,0.2)" }}
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 h-[88%] w-[72%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[6px] border-foreground/[0.05]"
         />
-
-        {/* Reset button */}
-        {onReset && (
-          <div className="absolute top-4 right-4 z-20">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={onReset}
-              className="h-8 px-3 text-xs bg-white/10 hover:bg-white/20 text-white/70 hover:text-white border-0 rounded-lg"
-            >
-              Reset
-            </Button>
-          </div>
-        )}
+        {/* Spade ornament behind the board */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none text-[200px] leading-none text-primary/[0.07]"
+        >
+          ♠
+        </span>
 
         {/* Player 1 - top center */}
         <div

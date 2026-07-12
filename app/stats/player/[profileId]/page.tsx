@@ -4,18 +4,13 @@ import { useEffect, useState, useMemo } from "react"
 import { useParams } from "next/navigation"
 import Link from "next/link"
 import { AppShell } from "@/components/layout/AppShell"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { ListRow } from "@/components/ui/list-row"
+import { NetResultCard } from "@/components/stats/NetResultCard"
 import { cn } from "@/lib/utils"
-import { ArrowLeft, ChevronRight, Eye } from "lucide-react"
+import { ChevronRight } from "lucide-react"
+import { BackButton } from "@/components/layout/BackButton"
 import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
@@ -25,7 +20,6 @@ import {
   loadTransactions,
   loadClubMemberDisplayNames,
   getSessionHistoryForProfile,
-  type SessionHistoryEntry,
 } from "@/lib/stats/calc"
 
 export default function PlayerGameHistoryPage() {
@@ -105,11 +99,15 @@ export default function PlayerGameHistoryPage() {
   const currencySymbol =
     sessions[0]?.currency ? getCurrencySymbol(sessions[0].currency) : "$"
 
+  const net = history.reduce((sum, h) => sum + h.pl, 0)
+  const wins = history.filter((h) => h.pl > 0).length
+  const bestNight = history.length ? Math.max(...history.map((h) => h.pl)) : 0
+
   if (!profileId) {
     return (
       <AppShell>
-        <div className="min-h-screen bg-background p-4 sm:p-6">
-          <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen p-4 sm:p-6">
+          <div className="max-w-2xl mx-auto">
             <p className="text-muted-foreground">Invalid player.</p>
             <Button variant="outline" asChild className="mt-4">
               <Link href="/stats">Back to Stats</Link>
@@ -122,21 +120,14 @@ export default function PlayerGameHistoryPage() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Game history</h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                {playerName}
-              </p>
-            </div>
-            <Button variant="outline" size="lg" asChild className="w-full sm:w-auto">
-              <Link href="/stats" className="gap-2">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Stats
-              </Link>
-            </Button>
+      <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
+        <div className="max-w-2xl mx-auto space-y-5">
+          {/* Detail-screen header: back + centered player name */}
+          <div className="flex items-center gap-2">
+            <BackButton fallback="/stats" />
+            <h1 className="text-lg font-bold tracking-tight text-foreground flex-1 text-center -ml-12 truncate">
+              {playerName || "Player"}
+            </h1>
           </div>
 
           {authLoading || isLoading ? (
@@ -177,108 +168,63 @@ export default function PlayerGameHistoryPage() {
               </CardContent>
             </Card>
           ) : (
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg">Sessions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="hidden md:block border rounded-lg overflow-hidden min-w-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="font-semibold">Date</TableHead>
-                        <TableHead className="text-right font-semibold tabular-nums">Profit/Loss</TableHead>
-                        <TableHead className="text-right font-semibold w-[140px]"> </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {history.map((entry) => (
-                        <HistoryTableRow
-                          key={entry.sessionId}
-                          entry={entry}
-                          currencySymbol={currencySymbol}
-                        />
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                <div className="md:hidden space-y-2 min-w-0 overflow-hidden">
-                  {history.map((entry) => (
-                    <HistoryTappableRow
+            <>
+              {/* Hero — same card as Profile (layout_guide.md §5) */}
+              <NetResultCard
+                net={net}
+                currencySymbol={currencySymbol}
+                tiles={[
+                  { label: "Games", value: history.length },
+                  {
+                    label: "Win rate",
+                    value: `${Math.round((wins / history.length) * 100)}%`,
+                  },
+                  {
+                    label: "Best night",
+                    value: `+${currencySymbol}${bestNight.toLocaleString(undefined, {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}`,
+                    accent: "success",
+                  },
+                ]}
+              />
+
+              {/* Session history rows */}
+              <section className="space-y-2">
+                <h3 className="text-base font-semibold">History</h3>
+                {history.map((entry) => {
+                  const plColor =
+                    entry.pl > 0.01
+                      ? "text-success"
+                      : entry.pl < -0.01
+                        ? "text-destructive"
+                        : "text-muted-foreground"
+                  return (
+                    <ListRow
                       key={entry.sessionId}
-                      entry={entry}
-                      currencySymbol={currencySymbol}
+                      href={`/session/${entry.sessionId}`}
+                      avatar={<span aria-hidden="true">♠</span>}
+                      title={entry.sessionName}
+                      subtitle={entry.date}
+                      right={
+                        <span className="flex items-center gap-1.5">
+                          <span className={cn("text-base font-extrabold tabular-nums", plColor)}>
+                            {entry.pl > 0 ? "+" : entry.pl < 0 ? "−" : ""}
+                            {currencySymbol}
+                            {Math.abs(entry.pl).toFixed(2)}
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </span>
+                      }
                     />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  )
+                })}
+              </section>
+            </>
           )}
         </div>
       </div>
     </AppShell>
-  )
-}
-
-function HistoryTableRow({
-  entry,
-  currencySymbol,
-}: {
-  entry: SessionHistoryEntry
-  currencySymbol: string
-}) {
-  const plColor =
-    entry.pl > 0.01
-      ? "text-green-600 dark:text-green-500"
-      : entry.pl < -0.01
-        ? "text-red-600 dark:text-red-500"
-        : "text-muted-foreground"
-  return (
-    <TableRow className="hover:bg-muted/50">
-      <TableCell className="font-mono text-sm tabular-nums">{entry.date}</TableCell>
-      <TableCell className={cn("text-right font-mono font-semibold tabular-nums", plColor)}>
-        {entry.pl > 0 ? "+" : ""}
-        {currencySymbol}
-        {entry.pl.toFixed(2)}
-      </TableCell>
-      <TableCell className="text-right">
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/session/${entry.sessionId}`} className="gap-1 min-h-[44px] flex items-center">
-            <Eye className="h-4 w-4" />
-            View results
-            <ChevronRight className="h-4 w-4" />
-          </Link>
-        </Button>
-      </TableCell>
-    </TableRow>
-  )
-}
-
-function HistoryTappableRow({
-  entry,
-  currencySymbol,
-}: {
-  entry: SessionHistoryEntry
-  currencySymbol: string
-}) {
-  const plColor =
-    entry.pl > 0.01
-      ? "text-green-600 dark:text-green-500"
-      : entry.pl < -0.01
-        ? "text-red-600 dark:text-red-500"
-        : "text-muted-foreground"
-  return (
-    <Link
-      href={`/session/${entry.sessionId}`}
-      className="flex items-center gap-4 min-h-[48px] p-4 border rounded-lg active:bg-muted transition-colors min-w-0"
-    >
-      <span className="font-mono text-sm tabular-nums text-muted-foreground shrink-0">{entry.date}</span>
-      <span className={cn("flex-1 text-right font-mono font-semibold tabular-nums truncate", plColor)}>
-        {entry.pl > 0 ? "+" : ""}
-        {currencySymbol}
-        {entry.pl.toFixed(2)}
-      </span>
-      <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
-    </Link>
   )
 }

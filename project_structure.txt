@@ -1,0 +1,129 @@
+Poker Settle — Project Structure
+=================================
+
+poker-settle/
+├── app/                                  # Next.js App Router (pages & layouts)
+│   ├── layout.tsx                        # Root layout — providers, metadata, analytics
+│   ├── page.tsx                          # Home / dashboard (session list)
+│   ├── globals.css                       # Global styles
+│   ├── auth/
+│   │   ├── callback/page.tsx             # OAuth callback handler
+│   │   └── logout/page.tsx              # Logout handler
+│   ├── club/
+│   │   ├── members/page.tsx             # Club member management
+│   │   └── link-players/page.tsx        # Link legacy players to members
+│   ├── join/page.tsx                     # Join a club via code
+│   ├── profile/page.tsx                  # User profile settings
+│   ├── session/
+│   │   ├── [id]/page.tsx                # Live session detail page
+│   │   └── join/[token]/page.tsx        # Join session via invite link
+│   ├── sessions/page.tsx                 # All sessions list
+│   ├── stats/
+│   │   ├── page.tsx                     # Club-wide leaderboard / stats
+│   │   └── player/[profileId]/page.tsx  # Per-player stats page
+│   └── tools/
+│       └── hands-chance/page.tsx        # Poker odds calculator tool
+│
+├── components/                           # Shared UI components
+│   ├── AuthGuard.tsx                     # Redirect unauthenticated users
+│   ├── LoginDialog.tsx                   # Sign-in modal
+│   ├── LoginGate.tsx                     # Inline login prompt
+│   ├── OnboardingGuard.tsx               # Redirect users with no club
+│   ├── dashboard/
+│   │   └── ActiveSessionBanner.tsx       # Banner for in-progress session
+│   ├── layout/
+│   │   └── AppShell.tsx                  # Main app shell with nav
+│   ├── session/
+│   │   ├── AddBuyinSheet.tsx             # Bottom sheet to add a buy-in
+│   │   ├── AddCashoutSheet.tsx           # Bottom sheet to add a cashout
+│   │   ├── EmptyState.tsx                # No-players empty state
+│   │   ├── FinalizationChecklist.tsx     # Pre-finalize checklist
+│   │   ├── InvitePlayersDialog.tsx       # Share invite link dialog
+│   │   ├── PlayerActionsSheet.tsx        # Per-player action menu
+│   │   ├── PlayerMemberCombobox.tsx      # Player / member selector input
+│   │   ├── PlayerTable.tsx               # Session player list table
+│   │   ├── RemovePlayerConfirmSheet.tsx  # Confirm player removal
+│   │   ├── StageBanner.tsx               # Current session stage banner
+│   │   └── Stepper.tsx                   # Stage progress stepper
+│   └── ui/                               # Primitive UI components (Radix-based)
+│       ├── alert.tsx
+│       ├── badge.tsx
+│       ├── bottom-sheet.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       ├── collapsible.tsx
+│       ├── dialog.tsx
+│       ├── input.tsx
+│       ├── label.tsx
+│       ├── separator.tsx
+│       └── table.tsx
+│
+├── contexts/                             # React context providers
+│   ├── AuthContext.tsx                   # Current user & auth state
+│   ├── ClubContext.tsx                   # Active club & membership
+│   └── UIStateContext.tsx                # Shared UI state (sheets, modals)
+│
+├── features/                             # Self-contained feature modules
+│   └── handsChance/                      # Poker odds calculator
+│       ├── HandsChancePage.tsx           # Feature root component
+│       ├── PokerTable.tsx                # Visual poker table
+│       ├── PokerTableLayout.tsx          # Table layout wrapper
+│       ├── PlayerSeat.tsx                # Individual player seat
+│       ├── PlayerSlot.tsx                # Card slot for a player hand
+│       ├── BoardSlot.tsx                 # Community card slot
+│       ├── Card.tsx                      # Playing card component
+│       ├── CardGrid.tsx                  # Card picker grid
+│       ├── CardPickerDock.tsx            # Floating card picker
+│       ├── CardSlot.tsx                  # Empty / filled card slot
+│       ├── OddsDisplay.tsx               # Win-probability display
+│       ├── OddsPanel.tsx                 # Odds results panel
+│       ├── oddsCalc.ts                   # Odds calculation logic
+│       ├── useHandsChanceState.ts        # Feature state hook
+│       ├── types.ts                      # Feature-local types
+│       └── utils.ts                      # Helpers
+│
+├── hooks/                                # Custom React hooks
+│   ├── useIsDesktop.ts                   # Responsive breakpoint detection
+│   ├── useKeyboardOffset.ts             # Virtual keyboard layout offset
+│   ├── useLongPress.ts                   # Long-press gesture handler
+│   ├── useSessionPlayers.ts             # Session player list state
+│   ├── useSessionStage.ts               # Session stage machine
+│   └── useSessionTransactions.ts        # Buy-in / cashout transactions
+│
+├── lib/                                  # Utilities and shared logic
+│   ├── currency.ts                       # Currency symbol helpers
+│   ├── storage.ts                        # localStorage abstraction
+│   ├── supabaseClient.ts                 # Supabase client singleton
+│   ├── utils.ts                          # General utilities (cn, dates, …)
+│   ├── session/
+│   │   ├── calculations.ts              # Settlement math
+│   │   ├── constants.ts                 # Session-level constants
+│   │   └── stage.ts                     # Stage transition rules
+│   └── stats/
+│       └── calc.ts                       # Player stats calculations
+│
+├── types/                                # Shared TypeScript types
+│   ├── club.ts                           # Club, ClubMember, ClubWithMembership
+│   ├── player.ts                         # Player
+│   ├── session.ts                        # Session
+│   └── transaction.ts                    # Transaction (buy-in / cashout)
+│
+├── supabase/
+│   └── migrations/                       # Ordered SQL migration files
+│
+├── tests/
+│   └── mobile-ux.spec.ts                 # Playwright e2e tests
+│
+├── scripts/
+│   ├── bulk-link-base44-profiles.ts      # One-off data migration script
+│   └── fix-ngrok-timeout.sh              # ngrok dev helper
+│
+├── docs/                                 # Internal documentation
+│
+├── next.config.js                        # Next.js configuration
+├── tailwind.config.js                    # Tailwind CSS configuration
+├── postcss.config.js                     # PostCSS configuration
+├── tsconfig.json                         # TypeScript configuration
+├── playwright.config.ts                  # Playwright test configuration
+├── package.json
+└── README.md

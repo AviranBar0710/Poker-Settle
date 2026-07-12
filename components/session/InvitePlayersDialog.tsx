@@ -225,14 +225,14 @@ export function InvitePlayersDialog({
                     className="shrink-0"
                   >
                     {copied ? (
-                      <Check className="h-4 w-4 text-green-600" />
+                      <Check className="h-4 w-4 text-success" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
                 {copied && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
+                  <p className="text-xs text-success flex items-center gap-1">
                     <Check className="h-3 w-3" />
                     Copied to clipboard!
                   </p>

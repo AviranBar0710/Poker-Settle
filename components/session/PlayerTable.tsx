@@ -186,10 +186,10 @@ function PlayerRow({
 
   const plColor =
     pl > 0.01
-      ? "text-green-600 font-semibold"
+      ? "text-success font-semibold"
       : pl < -0.01
-      ? "text-red-600 font-semibold"
-      : "text-gray-600"
+      ? "text-destructive font-semibold"
+      : "text-muted-foreground"
 
   return (
     <>

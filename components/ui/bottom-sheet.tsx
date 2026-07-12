@@ -93,7 +93,7 @@ const BottomSheetContent = React.forwardRef<
           "w-full",
           heightClasses[height],
           // Visual styling
-          "rounded-t-2xl border-t bg-background shadow-lg",
+          "rounded-t-card border-t bg-gradient-to-b from-card-raised to-card shadow-lg",
           // Layout
           "flex flex-col",
           // Animation - slide from bottom only (mobile_ui_contract.md)
