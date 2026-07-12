@@ -4,6 +4,7 @@ import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { StatStrip, type StatStripItem } from "@/components/ui/stat-strip"
 import { Session } from "@/types/session"
 import { getCurrencySymbol } from "@/lib/currency"
 import { formatDateDDMMYYYY } from "@/lib/utils"
@@ -28,6 +29,14 @@ export function SessionCard({
 }: SessionCardProps) {
   const sym = getCurrencySymbol(session.currency)
   const isLive = !session.finalizedAt
+
+  const tiles: StatStripItem[] = [
+    { label: "Players", value: playerCount },
+    { label: isLive ? "On table" : "Pot", value: `${sym}${totalBuyins.toFixed(0)}` },
+  ]
+  if (buyinCount !== undefined) {
+    tiles.push({ label: "Buy-ins", value: buyinCount })
+  }
 
   return (
     <Card className="overflow-hidden transition-transform active:scale-[0.985]">
@@ -61,37 +70,7 @@ export function SessionCard({
           )}
         </div>
 
-        <div
-          className={`mt-4 grid gap-2.5 ${buyinCount !== undefined ? "grid-cols-3" : "grid-cols-2"}`}
-        >
-          <div className="rounded-tile border bg-background/45 px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Players
-            </p>
-            <p className="mt-0.5 text-base font-bold tabular-nums">
-              {playerCount}
-            </p>
-          </div>
-          <div className="rounded-tile border bg-background/45 px-3 py-2.5">
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              {isLive ? "On table" : "Pot"}
-            </p>
-            <p className="mt-0.5 truncate text-base font-bold tabular-nums">
-              {sym}
-              {totalBuyins.toFixed(0)}
-            </p>
-          </div>
-          {buyinCount !== undefined && (
-            <div className="rounded-tile border bg-background/45 px-3 py-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Buy-ins
-              </p>
-              <p className="mt-0.5 text-base font-bold tabular-nums">
-                {buyinCount}
-              </p>
-            </div>
-          )}
-        </div>
+        <StatStrip items={tiles} className="mt-4 gap-2.5" />
 
         <Link href={`/session/${session.id}`} className="mt-4 block">
           <Button

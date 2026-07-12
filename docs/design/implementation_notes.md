@@ -175,3 +175,30 @@ Deviations from the guide's snippets (all additive, none visual):
 
 Verification: `npm run build` ✓ (components compile; no call sites yet — they
 land screen-by-screen in the next passes).
+
+### L2 — Dashboard (layout_guide.md §2)
+
+- **Header**: subtitle removed, title fixed at `text-2xl`; New Session button
+  is now `hidden sm:inline-flex` (desktop-only in the header).
+- **Stats Overview**: the four full `<Card>` blocks replaced by one
+  `<StatStrip>` (Games / Live / Total pot / Avg pot). All four calculations
+  untouched. Unused imports dropped (`TrendingUp`, `TrendingDown`,
+  `DollarSign`, `Calendar`, `Badge`, `cn`, `CardHeader/Title/Description`).
+- **Recent Sessions**: header demoted `text-2xl` → `text-base font-semibold`,
+  renamed "Recent games", ghost "See all →" link to `/sessions` added.
+- **StickyCta**: mobile New Session button (same handler); page padding is now
+  `p-4 pb-28 sm:p-6 sm:pb-6`; `bg-background` removed from the page div so
+  the body glow shows through.
+- **ActiveSessionBanner** restructured into the hero card: spade watermark
+  (the screen's one allowed watermark), name at H3 + Live badge on the title
+  row, `StatStrip` (Players / On table / Elapsed), full-width primary
+  "Resume Session" inside the card. Elapsed-time logic untouched.
+  - **Deviation:** the old side-by-side desktop layout (text left, button
+    right) was dropped — the hero is stacked at all breakpoints per sketch 2.
+    The `bg-primary/5` tint was dropped in favor of the standard card gradient
+    + `border-primary/30` (hero is distinguished by size/watermark, not tint).
+- **SessionCard**: internal stat tiles refactored onto `StatStrip`
+  (guide §1 note). Visual delta: tile values go `text-base font-bold` →
+  `text-lg font-extrabold`, and the strip is a single row app-wide.
+
+Verification: `npm run build` ✓.

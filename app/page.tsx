@@ -4,15 +4,14 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/layout/AppShell"
 import { LoginGate } from "@/components/LoginGate"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Plus, TrendingUp, TrendingDown, DollarSign, Calendar } from "lucide-react"
+import { Plus } from "lucide-react"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
-import { cn, formatDateDDMMYYYY } from "@/lib/utils"
+import { formatDateDDMMYYYY } from "@/lib/utils"
 import Link from "next/link"
 import {
   Dialog,
@@ -27,6 +26,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
 import { ActiveSessionBanner } from "@/components/dashboard/ActiveSessionBanner"
 import { SessionCard } from "@/components/dashboard/SessionCard"
+import { StatStrip } from "@/components/ui/stat-strip"
+import { StickyCta } from "@/components/layout/StickyCta"
 
 export default function HomePage() {
   return (
@@ -290,23 +291,18 @@ function HomePageInner() {
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
+      <div className="min-h-screen p-4 pb-28 sm:p-6 sm:pb-6 overflow-x-hidden">
         <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
           {/* Page Header */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Overview of your poker sessions
-              </p>
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
             <Button
               onClick={() => {
                 setSessionName(formatDateDDMMYYYY(new Date()))
                 setShowCreateDialog(true)
               }}
               size="lg"
-              className="gap-2 w-full sm:w-auto"
+              className="hidden sm:inline-flex gap-2"
             >
               <Plus className="h-4 w-4" />
               New Session
@@ -426,90 +422,38 @@ function HomePageInner() {
             </DialogContent>
           </Dialog>
 
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Sessions
-                    </p>
-                    <p className="text-2xl font-bold mt-1">{totalSessions}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <Calendar className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Active Sessions
-                    </p>
-                    <p className="text-2xl font-bold mt-1">{activeSessions}</p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Total Pot Value
-                    </p>
-                    <p className="text-2xl font-bold mt-1">
-                      {totalPotValue.toLocaleString(undefined, {
-                        minimumFractionDigits: 0,
-                        maximumFractionDigits: 0,
-                      })}
-                      {currencySymbol}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-success" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">
-                      Average Session
-                    </p>
-                    <p className="text-2xl font-bold mt-1">
-                      {averagePotValue > 0
-                        ? `${averagePotValue.toLocaleString(undefined, {
-                            minimumFractionDigits: 1,
-                            maximumFractionDigits: 1,
-                          })}${currencySymbol}`
-                        : "—"}
-                    </p>
-                  </div>
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    <TrendingDown className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {/* Stats strip — layout_guide.md §2: neutral facts share one row */}
+          <StatStrip
+            items={[
+              { label: "Games", value: totalSessions },
+              { label: "Live", value: activeSessions },
+              {
+                label: "Total pot",
+                value: `${totalPotValue.toLocaleString(undefined, {
+                  minimumFractionDigits: 0,
+                  maximumFractionDigits: 0,
+                })}${currencySymbol}`,
+              },
+              {
+                label: "Avg pot",
+                value:
+                  averagePotValue > 0
+                    ? `${averagePotValue.toLocaleString(undefined, {
+                        minimumFractionDigits: 1,
+                        maximumFractionDigits: 1,
+                      })}${currencySymbol}`
+                    : "—",
+              },
+            ]}
+          />
 
           {/* Recent Sessions */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold tracking-tight">Recent Sessions</h2>
+              <h2 className="text-base font-semibold">Recent games</h2>
+              <Link href="/sessions" className="text-sm font-medium text-primary">
+                See all →
+              </Link>
             </div>
 
             {isLoadingSessions ? (
@@ -558,6 +502,21 @@ function HomePageInner() {
           </div>
         </div>
       </div>
+
+      {/* Mobile primary CTA — the only gradient-green button on small screens */}
+      <StickyCta>
+        <Button
+          size="lg"
+          className="w-full gap-2"
+          onClick={() => {
+            setSessionName(formatDateDDMMYYYY(new Date()))
+            setShowCreateDialog(true)
+          }}
+        >
+          <Plus className="h-4 w-4" />
+          New Session
+        </Button>
+      </StickyCta>
     </AppShell>
   )
 }
