@@ -211,7 +211,7 @@ export function LoginDialog({ open, onOpenChange, onClose, redirectTo }: LoginDi
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-lg !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-lg rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-lg"
+        className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-card !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-card rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-card"
         onOpenAutoFocus={(e) => {
           if (!isDesktop) e.preventDefault()
         }}
@@ -343,10 +343,10 @@ export function LoginDialog({ open, onOpenChange, onClose, redirectTo }: LoginDi
             <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 md:flex-none md:min-h-auto md:overflow-visible md:p-0 md:py-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="secondary"
                 onClick={handleGoogleSignIn}
                 disabled={sending || googleLoading}
-                className="w-full h-12 gap-2 border-2 text-base font-medium"
+                className="w-full h-12 gap-2 text-base font-medium"
               >
                 {googleLoading ? (
                   <>
@@ -365,7 +365,7 @@ export function LoginDialog({ open, onOpenChange, onClose, redirectTo }: LoginDi
                   <span className="w-full border-t" />
                 </div>
                 <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">
+                  <span className="bg-card px-2 text-muted-foreground">
                     Or continue with email
                   </span>
                 </div>

@@ -40,10 +40,10 @@ export function Stepper({
                 className={cn(
                   "flex items-center justify-center w-6 h-6 rounded-full border transition-all",
                   isCompleted
-                    ? "bg-primary/5 border-primary/30 text-primary"
+                    ? "bg-primary border-primary text-primary-foreground"
                     : isCurrent
-                    ? "bg-primary/10 border-primary/50 text-primary"
-                    : "bg-background border-muted/50 text-muted-foreground",
+                    ? "bg-primary/15 border-primary text-primary"
+                    : "bg-background border-muted-foreground/25 text-muted-foreground",
                   isClickable && "cursor-pointer hover:bg-muted/50",
                   !isClickable && "cursor-not-allowed opacity-40"
                 )}
@@ -66,8 +66,8 @@ export function Stepper({
             {index < steps.length - 1 && (
               <div
                 className={cn(
-                  "h-px flex-1 mx-1.5 -mt-3",
-                  isCompleted ? "bg-primary/20" : "bg-muted/50"
+                  "h-1 flex-1 mx-1.5 -mt-3 rounded-full",
+                  isCompleted ? "bg-primary" : "bg-muted-foreground/20"
                 )}
               />
             )}

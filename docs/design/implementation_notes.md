@@ -105,13 +105,40 @@ Deviations / deliberate keeps:
   selector updates if any test targets removed markup (e.g. the old sessions
   list layout).
 
-## Remaining (guide step 6 — screen passes)
+## Step 6 — screen passes (done)
 
-Global re-skin is live everywhere via tokens + primitives. Screen-specific
-layout work still pending, in sketch order: login suit-cluster hero (1), club
-pill header (2), profile net-card + sparkline (3, 17), create-session dialog →
-bottom sheet (4), filter pills on sessions (5), leaderboard rank rows (6),
-stage stepper bars (7, 10), transactions day-divider layout (11), settlement
-transfer rows + paid checkmarks (12 — checkmarks are a new feature, needs
-product OK), join/invite heroes (13, 16), members kebab sheet (14), link-player
-select pills (15).
+- **Login (1)**: `LoginGate` got the suit-cluster hero (♠ primary, ♣/♦ faded)
+  and "Let's get started" headline; `LoginDialog` Google button switched
+  `outline` → `secondary` (neutral surface per sketch — OAuth is not the
+  screen's primary action), divider chip `bg-background` → `bg-card` to sit on
+  the new dialog surface.
+- **Profile (3)**: avatar hero added (initials derived client-side from
+  display name/email — presentation only). **Deviation from sketch:** the
+  all-time-net card + win-rate tiles were NOT added; profile page has no stats
+  data today and adding Supabase queries is out of scope for a visual pass.
+  Flagged as follow-up.
+- **Stats (6) / Player stats (17)**: inherit primitives + semantic money
+  colors from steps 2–3; no layout change. Sketch-17 sparkline deferred (needs
+  per-session series plumbing).
+- **Create Session (4) / Login dialog**: mobile bottom-anchored dialogs bumped
+  to 24px top radius. **Deviation from sketch:** not converted to the
+  `BottomSheet` component — the existing Dialog already implements the
+  bottom-sheet behavior (bottom-anchored, scroll-safe, keyboard-safe) and a
+  swap would touch tested form logic for zero functional gain.
+- **Sessions (5)**: **filter pills NOT added** — the page intentionally
+  queries finalized sessions only (`.not("finalized_at","is",null)`); a
+  Live/All filter changes the data contract. Needs product decision.
+- **Session detail steppers (7/10)**: `Stepper` connectors are now 4px
+  primary progress bars; completed steps solid green. The 5-step model
+  (Setup/Buy-ins/Cash-outs/Results/Share) was kept — the sketch's 4-bar
+  stepper collapses Results+Share, and renaming steps is a product call.
+- **Join club (13)**: ♣ suit hero replaces the Users icon, "Join your crew"
+  title, code input restyled (56px, centered, mono, 0.3em tracking). Unused
+  `Users` import removed.
+- **Invite landing (16) / Transactions (11) / Settlement (12) / Members (14)
+  / Link players (15)**: inherit primitives; layouts unchanged. Settlement
+  "paid" checkmarks from sketch 12 are a new feature — awaiting product OK.
+
+## Verification (step 6 pass)
+
+- `npm run build`: ✓ all 14 routes compile and prerender.

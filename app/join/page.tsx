@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Users } from "lucide-react"
 
 export default function JoinPage() {
   const router = useRouter()
@@ -91,12 +90,10 @@ export default function JoinPage() {
       <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 md:p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="space-y-2">
-          <div className="flex justify-center">
-            <div className="rounded-full bg-primary/10 p-4">
-              <Users className="h-10 w-10 text-primary" />
-            </div>
+          <div aria-hidden="true" className="flex justify-center select-none">
+            <span className="text-6xl leading-none text-primary/90">♣</span>
           </div>
-          <CardTitle className="text-center text-xl md:text-2xl">Join a Club</CardTitle>
+          <CardTitle className="text-center text-xl md:text-2xl">Join your crew</CardTitle>
           <CardDescription className="text-center">
             Poker Settle works within clubs. Enter a join code from your host, or create your own club below.
           </CardDescription>
@@ -118,7 +115,7 @@ export default function JoinPage() {
                 onChange={handleChange}
                 autoComplete="off"
                 autoFocus={false}
-                className="font-mono text-lg uppercase tracking-wider"
+                className="h-14 text-center font-mono text-xl font-bold uppercase tracking-[0.3em]"
                 maxLength={16}
                 disabled={isSubmitting}
               />

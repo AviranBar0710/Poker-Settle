@@ -139,8 +139,30 @@ export default function ProfilePage() {
             </h1>
           </div>
 
+          {/* Avatar hero — DESIGN_SYSTEM.md §4 screen 3 */}
+          {!profileLoading && (
+            <div className="flex flex-col items-center text-center gap-2">
+              <div
+                aria-hidden="true"
+                className="flex h-20 w-20 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-2xl font-bold text-primary"
+              >
+                {(displayName || email || "?")
+                  .split(/[\s@]+/)
+                  .slice(0, 2)
+                  .map((part) => part.charAt(0).toUpperCase())
+                  .join("")}
+              </div>
+              <div>
+                <h2 className="text-title">{displayName || "Player"}</h2>
+                {email && (
+                  <p className="text-sm text-muted-foreground">{email}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Main Card */}
-          <Card className="rounded-2xl shadow-sm">
+          <Card>
             <CardContent className="p-4 sm:p-6 space-y-6">
               {profileError && (
                 <p className="text-sm text-destructive">{profileError}</p>
