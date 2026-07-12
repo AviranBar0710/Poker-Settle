@@ -50,15 +50,15 @@ export function CardSlot({
         rounded-lg border-2 transition-all duration-200 flex items-center justify-center overflow-hidden flex-shrink-0 box-border
         ${sizeClass}
         ${isSelected
-          ? "border-amber-400 border-dashed bg-amber-500/20 ring-2 ring-amber-400/40 shadow-[0_0_12px_rgba(251,191,36,0.3)]"
+          ? "border-primary border-dashed bg-primary/10 shadow-[0_0_14px_rgba(61,220,132,0.25)]"
           : isEmpty
-            ? "border-dashed border-white/25 bg-white/5 hover:bg-white/10"
+            ? "border-dashed border-muted-foreground/40 bg-card-raised hover:bg-card"
             : "border-transparent bg-transparent p-0"
         }
       `}
     >
       {isEmpty ? (
-        <Plus className="h-4 w-4 text-white/40" />
+        <Plus className={`h-4 w-4 ${isSelected ? "text-primary" : "text-foreground/70"}`} />
       ) : (
         <PokerCard
           card={card}

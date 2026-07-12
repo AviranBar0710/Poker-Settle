@@ -37,7 +37,7 @@ export function PlayerSeat({
       }}
       className={`
         flex flex-col items-center p-2 rounded-xl transition-all duration-200 cursor-pointer
-        ${isSeatSelected ? "ring-2 ring-amber-400/60 ring-offset-2 ring-offset-[#0a4d2e]" : ""}
+        ${isSeatSelected ? "ring-2 ring-primary/50 ring-offset-2 ring-offset-background" : ""}
       `}
     >
       <div className="flex gap-2 flex-shrink-0">

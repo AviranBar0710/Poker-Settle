@@ -26,6 +26,29 @@ export function useHandsChanceState() {
   const [results, setResults] = useState<PlayerResult[]>([])
   const [error, setError] = useState<string | null>(null)
 
+  // Undo history: snapshots taken before every mutation (capped at 30)
+  const [history, setHistory] = useState<
+    { players: string[][]; board: string[]; selectedSlot: SelectedSlot }[]
+  >([])
+
+  const pushHistory = () => {
+    setHistory((h) => [...h.slice(-29), { players, board, selectedSlot }])
+  }
+
+  const handleUndo = () => {
+    setHistory((h) => {
+      const prev = h[h.length - 1]
+      if (!prev) return h
+      setPlayers(prev.players)
+      setBoard(prev.board)
+      setSelectedSlot(prev.selectedSlot)
+      setError(null)
+      return h.slice(0, -1)
+    })
+  }
+
+  const canUndo = history.length > 0
+
   // Auto odds: recalculate whenever players or board changes
   useEffect(() => {
     if (!canCalculate(players)) {
@@ -110,6 +133,8 @@ export function useHandsChanceState() {
     // If no slot selected, do nothing
     if (!selectedSlot) return
 
+    pushHistory()
+
     // Assign card to selected slot
     if (selectedSlot.type === "player") {
       const newPlayers = [...players]
@@ -179,6 +204,7 @@ export function useHandsChanceState() {
       if (slot.type === "player") {
         const card = players[slot.playerIndex][slot.cardIndex]
         if (card && card.length >= 2) {
+          pushHistory()
           const newPlayers = [...players]
           newPlayers[slot.playerIndex] = [...newPlayers[slot.playerIndex]]
           newPlayers[slot.playerIndex][slot.cardIndex] = ""
@@ -187,6 +213,7 @@ export function useHandsChanceState() {
       } else if (slot.type === "board") {
         const card = board[slot.index]
         if (card && card.length >= 2) {
+          pushHistory()
           const newBoard = [...board]
           newBoard[slot.index] = ""
           setBoard(newBoard)
@@ -201,6 +228,7 @@ export function useHandsChanceState() {
 
   // Reset all data - auto-select Player 1 slot 0 for immediate card entry
   const handleReset = () => {
+    pushHistory()
     setPlayers([["", ""], ["", ""], ["", ""], ["", ""], ["", ""], ["", ""]])
     setBoard(["", "", "", "", ""])
     setResults([])
@@ -220,5 +248,7 @@ export function useHandsChanceState() {
     handlePlayerSeatClick,
     handleSlotClick,
     handleReset,
+    handleUndo,
+    canUndo,
   }
 }

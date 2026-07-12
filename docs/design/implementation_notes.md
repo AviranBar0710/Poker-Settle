@@ -304,6 +304,39 @@ never truncated" rule.
 - `ActiveSessionBanner`: `getElapsedTime` now returns `${days}d` once a
   session has been open ≥48h (a stale live session showed "3765h 22m").
 
+### L7 — Hands Chance dark redesign (user reference image)
+
+The green felt was replaced by the app's dark theme per the approved
+reference. This supersedes the "felt is that feature's deliberate identity"
+note from the color sweep.
+
+- **Page** (`HandsChancePage`): `bg-[#062d1a]` dropped (app background shows
+  through). Header rebuilt per reference: circular surface back button,
+  title, **Reset pill + circular Undo** on the right.
+- **Undo added** (`useHandsChanceState`): snapshot history (capped 30) pushed
+  before every mutation — card assign, slot clear, reset; `handleUndo`
+  restores the last snapshot, button disabled when history is empty. Only
+  net-new logic in this pass.
+- **Table** (`PokerTableLayout`): green radial gradient + amber casino rail
+  deleted; now a transparent area with a subtle oval rail
+  (`border-foreground/[0.05]`) and a large ♠ ornament (`text-primary/[0.07]`)
+  behind the board. Seat/board absolute positions unchanged. In-table Reset
+  removed (moved to header); `onReset` prop dropped.
+- **Slots** (`CardSlot`): empty = raised dark tile (`bg-card-raised`, dashed
+  muted border); selected = dashed **primary** border + green glow (was
+  amber). Seat ring and picked-card ring also amber → primary.
+- **Picker dock** (`CardPickerDock`): green translucent dock → dark
+  `bg-background/95` with hairline top border; single horizontal-scroll strip
+  replaced by a **9-column full-width grid** of all 52 cards in reference
+  order (ascending ranks, suit after suit), vertically scrollable. Cards
+  scale to the grid (`aspect-[5/7]`).
+- `PokerCard`: rank "T" now displays as **"10"** (reference); white faces
+  kept — the one deliberately light surface.
+- `OddsDisplay`: `text-white` → `text-primary` / `text-muted-foreground`
+  (white was tuned for the felt).
+
+Verification: `npm run build` ✓.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,

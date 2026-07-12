@@ -43,7 +43,7 @@ const stateStyles: Record<CardState, string> = {
   selectable:
     "border-gray-200 hover:scale-[1.05] hover:shadow-[0_4px_16px_rgba(0,0,0,0.25)] cursor-pointer ring-1 ring-white/20",
   selected:
-    "border-amber-400 ring-2 ring-amber-400/50 cursor-pointer shadow-[0_4px_16px_rgba(251,191,36,0.3)]",
+    "border-primary ring-2 ring-primary/50 cursor-pointer shadow-[0_4px_16px_rgba(61,220,132,0.3)]",
   locked: "border-gray-200 cursor-default",
   disabled:
     "opacity-30 border-gray-300 cursor-not-allowed pointer-events-none grayscale",
@@ -60,6 +60,7 @@ export function PokerCard({
   if (!card || card.length < 2) return null
 
   const rank = card[0].toUpperCase()
+  const displayRank = rank === "T" ? "10" : rank
   const suit = card[card.length - 1].toLowerCase()
   const suitLabel = SUIT_LABELS[suit] ?? suit
   const suitColor = SUIT_COLORS[suit] ?? "text-foreground"
@@ -77,7 +78,7 @@ export function PokerCard({
       role="img"
       aria-label={`${rank} of ${suit === "h" ? "hearts" : suit === "d" ? "diamonds" : suit === "c" ? "clubs" : "spades"}`}
     >
-      <span className={cn("font-mono font-bold leading-none", suitColor, variant === "normal" ? "text-base" : "")}>{rank}</span>
+      <span className={cn("font-mono font-bold leading-none", suitColor, variant === "normal" ? "text-base" : "")}>{displayRank}</span>
       <span className={cn("font-sans leading-none", suitColor, variant === "normal" ? "text-xl" : variant === "small" ? "text-sm" : "text-lg")}>
         {suitLabel}
       </span>
