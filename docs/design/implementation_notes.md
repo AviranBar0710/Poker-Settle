@@ -290,6 +290,20 @@ Verification: `npm run build` ✓.
 
 Verification: `npm run build` ✓.
 
+### Fix — StatStrip truncation (user-reported, dashboard screenshot)
+
+Four tiles forced into one row on a 390px screen truncated money values
+("32,5…", "928…") and elapsed time ("3765h …") — violating the "money is
+never truncated" rule.
+
+- `stat-strip.tsx`: layout is now count-aware — **4+ items wrap to a 2-column
+  grid on mobile** (`grid-cols-2 lg:grid-cols-4`); 3 items stay `grid-cols-3`;
+  2 stay `grid-cols-2`. `truncate` and `min-w-[92px]` removed from values
+  (labels may still truncate); value size is `text-base sm:text-lg`,
+  padding bumped to `py-3` for a calmer tile.
+- `ActiveSessionBanner`: `getElapsedTime` now returns `${days}d` once a
+  session has been open ≥48h (a stale live session showed "3765h 22m").
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,

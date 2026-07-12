@@ -24,6 +24,9 @@ function getElapsedTime(createdAt: string): string {
   const hours = Math.floor(diffMs / (1000 * 60 * 60))
   const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
 
+  if (hours >= 48) {
+    return `${Math.floor(hours / 24)}d`
+  }
   if (hours > 0) {
     return `${hours}h ${minutes}m`
   }

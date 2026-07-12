@@ -10,9 +10,10 @@ export interface StatStripItem {
 }
 
 /**
- * Single row of compact inset stat tiles (layout_guide.md §1).
- * Replaces "grid of stat cards": secondary numbers share one strip so none
- * competes with the screen's hero. Same tile visual as SessionCard's tiles.
+ * Compact inset stat tiles (layout_guide.md §1). Replaces "grid of stat
+ * cards": secondary numbers share one strip so none competes with the
+ * screen's hero. Money is never truncated — with 4+ items the strip wraps
+ * to a 2-column grid on small screens instead of clipping values.
  */
 export function StatStrip({
   items,
@@ -21,19 +22,26 @@ export function StatStrip({
   items: StatStripItem[]
   className?: string
 }) {
+  const cols =
+    items.length >= 4
+      ? "grid-cols-2 lg:grid-cols-4"
+      : items.length === 3
+        ? "grid-cols-3"
+        : "grid-cols-2"
+
   return (
-    <div className={cn("grid grid-flow-col auto-cols-fr gap-2 overflow-x-auto", className)}>
+    <div className={cn("grid gap-2", cols, className)}>
       {items.map((it) => (
         <div
           key={it.label}
-          className="rounded-tile border bg-background/45 px-3 py-2.5 min-w-[92px]"
+          className="min-w-0 rounded-tile border bg-background/45 px-3 py-3"
         >
-          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground whitespace-nowrap">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
             {it.label}
           </p>
           <p
             className={cn(
-              "mt-0.5 text-lg font-extrabold tabular-nums truncate",
+              "mt-1 text-base sm:text-lg font-extrabold leading-tight tabular-nums",
               it.accent === "success" && "text-success",
               it.accent === "danger" && "text-destructive"
             )}
