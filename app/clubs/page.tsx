@@ -19,9 +19,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { supabase } from "@/lib/supabaseClient"
 import { BackButton } from "@/components/layout/BackButton"
 import {
   ChevronRight,
+  Trash2,
   Check,
   Copy,
   Link2,
@@ -123,12 +125,16 @@ export default function ClubsPage() {
   const router = useRouter()
   const isDesktop = useIsDesktop()
   const { user, loading: authLoading } = useAuth()
-  const { clubs, activeClub, loading: clubsLoading, setActiveClub, createClub } = useClub()
+  const { clubs, activeClub, loading: clubsLoading, setActiveClub, createClub, refreshClubs } = useClub()
   const [switchingClubId, setSwitchingClubId] = useState<string | null>(null)
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newClubName, setNewClubName] = useState("")
   const [isCreating, setIsCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState("")
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -158,6 +164,22 @@ export default function ClubsPage() {
     setSwitchingClubId(clubId)
     await setActiveClub(clubId)
     // Always land on the dashboard after switching clubs
+    router.push("/")
+  }
+
+  const handleDeleteClub = async () => {
+    if (!activeClub || deleteConfirmText.trim() !== activeClub.name) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    const { error } = await supabase.rpc("delete_club", { p_club_id: activeClub.id })
+    if (error) {
+      setDeleteError(error.message ?? "Failed to delete club")
+      setIsDeleting(false)
+      return
+    }
+    await refreshClubs()
+    setIsDeleting(false)
+    setShowDeleteDialog(false)
     router.push("/")
   }
 
@@ -240,6 +262,22 @@ export default function ClubsPage() {
                         right={<ChevronRight className="h-4 w-4 text-muted-foreground" />}
                       />
                     )}
+                    {/* Delete — owner ONLY (RPC enforces server-side too) */}
+                    {activeClub.role === "owner" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => {
+                          setDeleteConfirmText("")
+                          setDeleteError(null)
+                          setShowDeleteDialog(true)
+                        }}
+                        className="w-full justify-start gap-3 px-3 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete club
+                      </Button>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -299,6 +337,88 @@ export default function ClubsPage() {
           </div>
         </div>
       </div>
+
+      {/* Delete Club Dialog — type-to-confirm, irreversible */}
+      <Dialog
+        open={showDeleteDialog}
+        onOpenChange={(open) => {
+          setShowDeleteDialog(open)
+          if (!open) {
+            setDeleteConfirmText("")
+            setDeleteError(null)
+          }
+        }}
+      >
+        <DialogContent
+          className="!flex !flex-col p-0 gap-0 !max-h-[90vh] md:!max-w-lg md:!max-h-[85vh] md:p-6 md:gap-4 md:rounded-card !bottom-0 !left-0 !right-0 !top-auto !translate-y-0 rounded-t-card rounded-b-none md:!left-[50%] md:!top-[50%] md:!right-auto md:!bottom-auto md:!translate-x-[-50%] md:!translate-y-[-50%] md:!rounded-card"
+          onOpenAutoFocus={(e) => {
+            if (!isDesktop) e.preventDefault()
+          }}
+        >
+          <div className="flex flex-col h-full min-h-0">
+            <div className="flex-shrink-0 px-4 pt-5 pb-4 border-b md:border-b-0 md:p-0 md:pb-0">
+              <DialogHeader className="md:text-left">
+                <DialogTitle className="text-xl md:text-lg font-semibold text-destructive">
+                  Delete {activeClub?.name}?
+                </DialogTitle>
+                <DialogDescription className="text-sm mt-1.5 text-muted-foreground md:mt-0">
+                  This permanently deletes the club with ALL its sessions,
+                  players, and transaction history — for every member. This
+                  cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+            </div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-4 space-y-4 md:flex-none md:min-h-auto md:overflow-visible md:p-0 md:py-4">
+              {deleteError && (
+                <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md px-3 py-2" role="alert">
+                  {deleteError}
+                </p>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="delete-club-confirm" className="text-sm font-semibold block text-foreground">
+                  Type the club name to confirm
+                </Label>
+                <Input
+                  id="delete-club-confirm"
+                  type="text"
+                  placeholder={activeClub?.name}
+                  value={deleteConfirmText}
+                  onChange={(e) => {
+                    setDeleteConfirmText(e.target.value)
+                    setDeleteError(null)
+                  }}
+                  disabled={isDeleting}
+                  className="h-12 md:h-10 text-base md:text-sm"
+                  autoComplete="off"
+                  autoFocus={false}
+                />
+              </div>
+            </div>
+            <div className="flex-shrink-0 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 border-t bg-background md:border-t-0 md:bg-transparent md:p-0 md:pt-4 md:pb-0">
+              <div className="flex flex-col-reverse gap-2 md:flex-row md:justify-end md:gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShowDeleteDialog(false)}
+                  disabled={isDeleting}
+                  className="h-11 md:h-10 order-2 md:order-1 text-base md:text-sm"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDeleteClub}
+                  disabled={isDeleting || deleteConfirmText.trim() !== activeClub?.name}
+                  className="h-12 md:h-10 order-1 md:order-2 md:min-w-[160px] text-base md:text-sm font-semibold"
+                >
+                  {isDeleting ? "Deleting…" : "Delete forever"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Club Dialog */}
       <Dialog

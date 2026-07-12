@@ -446,6 +446,24 @@ so "back" ignored where you actually came from.
 
 Verification: `npm run build` ✓.
 
+### Feature — Owner can delete a club (user request)
+
+- **DB**: new migration `20260712000000_delete_club_rpc.sql` — SECURITY
+  DEFINER RPC `delete_club(p_club_id)` (same pattern as
+  `member_management_rpc`). Required because clubs has NO DELETE policy and
+  the sessions/players/transactions FKs to clubs have no ON DELETE CASCADE.
+  The RPC verifies `is_club_owner` (owner only — admins cannot delete),
+  then deletes transactions → players → sessions → club; `club_members`
+  cascades, `profiles.active_club_id` becomes NULL. **Must be applied to
+  the Supabase project before the button works.**
+- **UI** (`/clubs`): "Delete club" ghost-danger row in the active-club hero,
+  rendered for `role === "owner"` only. Opens a type-the-club-name-to-confirm
+  dialog ("Delete forever" stays disabled until the name matches exactly).
+  On success: `refreshClubs()` + navigate to dashboard (OnboardingGuard
+  routes to /join if that was the last club).
+
+Verification: `npm run build` ✓.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,
