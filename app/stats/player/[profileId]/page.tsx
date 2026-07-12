@@ -229,9 +229,9 @@ function HistoryTableRow({
 }) {
   const plColor =
     entry.pl > 0.01
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : entry.pl < -0.01
-        ? "text-red-600 dark:text-red-500"
+        ? "text-destructive"
         : "text-muted-foreground"
   return (
     <TableRow className="hover:bg-muted/50">
@@ -263,9 +263,9 @@ function HistoryTappableRow({
 }) {
   const plColor =
     entry.pl > 0.01
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : entry.pl < -0.01
-        ? "text-red-600 dark:text-red-500"
+        ? "text-destructive"
         : "text-muted-foreground"
   return (
     <Link

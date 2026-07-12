@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import "./globals.css"
+import "./theme.css"
 import { AuthProvider } from "@/contexts/AuthContext"
 import { UIStateProvider } from "@/contexts/UIStateContext"
 import { ClubProvider } from "@/contexts/ClubContext"

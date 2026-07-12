@@ -182,8 +182,8 @@ export function AddCashoutSheet({
       <BottomSheetContent height="auto" className="flex flex-col max-h-[85vh]">
         {successAmount != null ? (
           <div className="flex flex-col items-center justify-center py-12 px-4">
-            <div className="rounded-full bg-green-500/20 p-4 mb-4">
-              <Check className="h-12 w-12 text-green-600 dark:text-green-500" />
+            <div className="rounded-full bg-success/15 p-4 mb-4">
+              <Check className="h-12 w-12 text-success" />
             </div>
             <p className="text-lg font-semibold">Cash-out added!</p>
             <p className="text-muted-foreground mt-1">

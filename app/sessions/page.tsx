@@ -4,15 +4,11 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { AppShell } from "@/components/layout/AppShell"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { getCurrencySymbol } from "@/lib/currency"
-import { formatDateDDMMYYYY } from "@/lib/utils"
+import { SessionCard } from "@/components/dashboard/SessionCard"
 import { Session } from "@/types/session"
 import { Transaction } from "@/types/transaction"
-import Link from "next/link"
-import { Calendar, Eye } from "lucide-react"
 import { useClub } from "@/contexts/ClubContext"
 
 type SessionWithPL = Session & {
@@ -149,62 +145,14 @@ export default function SessionsHistoryPage() {
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4 min-w-0 overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
               {sessions.map((session) => (
-                <Card key={session.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      {/* Left: Session Info */}
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                          <h3 className="text-lg sm:text-xl font-semibold truncate">{session.name}</h3>
-                          <Badge variant="default" className="shrink-0 w-fit">
-                            Finalized
-                          </Badge>
-                        </div>
-
-                        {/* Primary info: Created at, Currency, Total buy-in, Players */}
-                        {(() => {
-                          const sym = getCurrencySymbol(session.currency)
-                          return (
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-                              <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Calendar className="h-4 w-4 shrink-0" />
-                                <span>{formatDateDDMMYYYY(session.createdAt)}</span>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Currency</p>
-                                <p className="text-sm font-mono font-semibold">{sym}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total buy-in</p>
-                                <p className="text-sm font-mono font-semibold">
-                                  {sym}{session.totalBuyins.toFixed(0)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-muted-foreground uppercase tracking-wide">Players</p>
-                                <p className="text-sm font-mono font-semibold">
-                                  {session.playerCount ?? 0} {(session.playerCount ?? 0) === 1 ? "Player" : "Players"}
-                                </p>
-                              </div>
-                            </div>
-                          )
-                        })()}
-                      </div>
-
-                      {/* Right: Action */}
-                      <div className="shrink-0 w-full sm:w-auto">
-                        <Link href={`/session/${session.id}`} className="block">
-                          <Button variant="outline" size="lg" className="gap-2 w-full sm:w-auto">
-                            <Eye className="h-4 w-4" />
-                            View Session
-                          </Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <SessionCard
+                  key={session.id}
+                  session={session}
+                  playerCount={session.playerCount ?? 0}
+                  totalBuyins={session.totalBuyins}
+                />
               ))}
             </div>
           )}

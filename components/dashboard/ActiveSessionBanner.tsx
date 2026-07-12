@@ -62,10 +62,10 @@ export function ActiveSessionBanner({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex-1 min-w-0 space-y-3">
             <div className="flex items-center gap-2 flex-wrap">
-              <Badge variant="default" className="bg-green-600 hover:bg-green-600 text-white text-xs font-medium gap-1">
+              <Badge variant="live" className="text-xs font-bold gap-1.5">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75 motion-reduce:animate-none" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
                 </span>
                 Live
               </Badge>

@@ -26,6 +26,7 @@ import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
 import { ActiveSessionBanner } from "@/components/dashboard/ActiveSessionBanner"
+import { SessionCard } from "@/components/dashboard/SessionCard"
 
 export default function HomePage() {
   return (
@@ -452,8 +453,8 @@ function HomePageInner() {
                     </p>
                     <p className="text-2xl font-bold mt-1">{activeSessions}</p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900/20 flex items-center justify-center">
-                    <TrendingUp className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="h-6 w-6 text-primary" />
                   </div>
                 </div>
               </CardContent>
@@ -474,8 +475,8 @@ function HomePageInner() {
                       {currencySymbol}
                     </p>
                   </div>
-                  <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/20 flex items-center justify-center">
-                    <DollarSign className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <div className="h-12 w-12 rounded-full bg-success/10 flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-success" />
                   </div>
                 </div>
               </CardContent>
@@ -538,55 +539,20 @@ function HomePageInner() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 min-w-0">
-                {recentSessions.map((session) => (
-                  <Card
-                    key={session.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                  >
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg truncate">
-                            {session.name}
-                          </CardTitle>
-                          <CardDescription className="mt-1">
-                            {formatDateDDMMYYYY(session.createdAt)}
-                          </CardDescription>
-                        </div>
-                        <Badge
-                          variant={session.finalizedAt ? "default" : "secondary"}
-                          className="ml-2 shrink-0"
-                        >
-                          {session.finalizedAt ? "Finalized" : "Active"}
-                        </Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                          <span className="text-sm text-muted-foreground">
-                            {players.filter((p) => p.session_id === session.id).length} Player
-                            {players.filter((p) => p.session_id === session.id).length !== 1 ? "s" : ""}
-                          </span>
-                          <span className="text-sm font-medium font-mono">
-                            {(() => {
-                              const sym = getCurrencySymbol(session.currency)
-                              const total = transactions
-                                .filter((t) => t.sessionId === session.id && t.type === "buyin")
-                                .reduce((s, t) => s + t.amount, 0)
-                              return `${total.toFixed(0)}${sym}`
-                            })()}
-                          </span>
-                        </div>
-                        <Link href={`/session/${session.id}`} className="shrink-0">
-                          <Button variant="outline" size="sm">
-                            {session.finalizedAt ? "View" : "Continue"}
-                          </Button>
-                        </Link>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                {recentSessions.map((session) => {
+                  const sessionBuyins = transactions.filter(
+                    (t) => t.sessionId === session.id && t.type === "buyin"
+                  )
+                  return (
+                    <SessionCard
+                      key={session.id}
+                      session={session}
+                      playerCount={players.filter((p) => p.session_id === session.id).length}
+                      totalBuyins={sessionBuyins.reduce((s, t) => s + t.amount, 0)}
+                      buyinCount={sessionBuyins.length}
+                    />
+                  )
+                })}
               </div>
             )}
           </div>

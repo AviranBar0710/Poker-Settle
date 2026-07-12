@@ -36,8 +36,8 @@ const PHASE_CONFIG: Record<
   },
   ready_to_finalize: {
     label: "Ready to Finalize",
-    bgClass: "bg-green-500/10",
-    borderClass: "border-green-500/30",
+    bgClass: "bg-success/10",
+    borderClass: "border-success/30",
     icon: "✓",
   },
   finalized: {
@@ -84,7 +84,7 @@ export function StageBanner({
             <button
               type="button"
               onClick={onScrollToMissingBuyins}
-              className="flex items-center gap-1.5 mt-2 pl-6 sm:pl-6 text-sm text-amber-600 dark:text-amber-500 hover:underline text-left"
+              className="flex items-center gap-1.5 mt-2 pl-6 sm:pl-6 text-sm text-amber-500 hover:underline text-left"
             >
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>

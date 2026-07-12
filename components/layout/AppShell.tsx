@@ -84,7 +84,7 @@ function JoinCodeCopyRow({ joinCode }: { joinCode: string }) {
           aria-label={copied ? "Copied" : "Copy join code"}
         >
           {copied ? (
-            <span className="flex items-center gap-1.5 text-green-600 text-sm font-medium" role="status">
+            <span className="flex items-center gap-1.5 text-success text-sm font-medium" role="status">
               <Check className="h-4 w-4 shrink-0" />
               Copied
             </span>

@@ -755,9 +755,9 @@ function SessionPageInner() {
                         className={cn(
                           "text-base font-bold font-mono leading-none truncate max-w-full text-center w-full px-1",
                           totalProfitLoss > BALANCE_TOLERANCE
-                            ? "text-green-600 dark:text-green-500"
+                            ? "text-success"
                             : totalProfitLoss < -BALANCE_TOLERANCE
-                            ? "text-red-600 dark:text-red-500"
+                            ? "text-destructive"
                             : "text-muted-foreground"
                         )}
                       >
@@ -810,9 +810,9 @@ function SessionPageInner() {
                     className={cn(
                       "text-sm sm:text-base font-bold font-mono whitespace-nowrap",
                       totalProfitLoss > BALANCE_TOLERANCE
-                        ? "text-green-600 dark:text-green-500"
+                        ? "text-success"
                         : totalProfitLoss < -BALANCE_TOLERANCE
-                        ? "text-red-600 dark:text-red-500"
+                        ? "text-destructive"
                         : "text-muted-foreground"
                     )}
                   >
@@ -1005,8 +1005,8 @@ function SessionPageInner() {
                   {winners.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <TrendingUp className="h-4 w-4 text-green-600 dark:text-green-500" />
-                        <h3 className="text-sm font-semibold text-green-600 dark:text-green-500">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                        <h3 className="text-sm font-semibold text-success">
                           Winner ({winners.length})
                         </h3>
                       </div>
@@ -1014,17 +1014,17 @@ function SessionPageInner() {
                         {winners.map((result) => (
                           <div
                             key={result.player.id}
-                            className="p-3 md:p-3 bg-green-50/50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-900"
+                            className="p-3 md:p-3 bg-success/5 rounded-lg border border-success/25"
                           >
                             {/* Mobile: Vertical layout with dominant number */}
                             <div className="md:hidden space-y-2">
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
-                                <p className="text-lg font-bold font-mono text-green-600 dark:text-green-500">
+                                <p className="text-lg font-bold font-mono text-success">
                                   +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-green-200/50 dark:border-green-900/50">
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-success/15">
                                 <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
                                 <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
@@ -1032,7 +1032,7 @@ function SessionPageInner() {
                             {/* Desktop: Original horizontal layout */}
                             <div className="hidden md:flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-success/15 text-success font-semibold text-sm">
                                 {result.player.name[0].toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1045,7 +1045,7 @@ function SessionPageInner() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-green-600 dark:text-green-500">
+                              <p className="text-sm font-semibold text-success">
                                 +{getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Winnings</p>
@@ -1115,8 +1115,8 @@ function SessionPageInner() {
                   {losers.length > 0 && (
                     <div>
                       <div className="flex items-center gap-2 mb-3">
-                        <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-500" />
-                        <h3 className="text-sm font-semibold text-red-600 dark:text-red-500">
+                        <TrendingDown className="h-4 w-4 text-destructive" />
+                        <h3 className="text-sm font-semibold text-destructive">
                           Owes ({losers.length})
                         </h3>
                       </div>
@@ -1124,17 +1124,17 @@ function SessionPageInner() {
                         {losers.map((result) => (
                           <div
                             key={result.player.id}
-                            className="p-3 md:p-3 bg-red-50/50 dark:bg-red-950/20 rounded-lg border border-red-200 dark:border-red-900"
+                            className="p-3 md:p-3 bg-destructive/5 rounded-lg border border-destructive/25"
                           >
                             {/* Mobile: Vertical layout with dominant number */}
                             <div className="md:hidden space-y-2">
                               <div className="flex items-center justify-between">
                                 <p className="font-semibold text-base text-foreground">{result.player.name}</p>
-                                <p className="text-lg font-bold font-mono text-red-600 dark:text-red-500">
+                                <p className="text-lg font-bold font-mono text-destructive">
                                   {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                                 </p>
                               </div>
-                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-red-200/50 dark:border-red-900/50">
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1 border-t border-destructive/15">
                                 <span>Buy-in: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalBuyins.toFixed(2)}</span></span>
                                 <span>Final: <span className="font-mono font-medium text-foreground">{getCurrencySymbol(session.currency)}{result.totalCashouts.toFixed(2)}</span></span>
                               </div>
@@ -1142,7 +1142,7 @@ function SessionPageInner() {
                             {/* Desktop: Original horizontal layout */}
                             <div className="hidden md:flex items-center justify-between">
                             <div className="flex items-center gap-3 flex-1">
-                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/15 text-destructive font-semibold text-sm">
                                 {result.player.name[0].toUpperCase()}
                               </div>
                               <div className="flex-1 min-w-0">
@@ -1155,7 +1155,7 @@ function SessionPageInner() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="text-sm font-semibold text-red-600 dark:text-red-500">
+                              <p className="text-sm font-semibold text-destructive">
                                 {getCurrencySymbol(session.currency)}{result.pl.toFixed(2)}
                               </p>
                               <p className="text-xs text-muted-foreground">Net Losses</p>
@@ -1171,13 +1171,13 @@ function SessionPageInner() {
                   <div className="pt-4 border-t space-y-2">
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Winnings:</span>
-                      <span className="text-sm font-semibold text-green-600 dark:text-green-500">
+                      <span className="text-sm font-semibold text-success">
                         +{getCurrencySymbol(session.currency)}{totalWinnings.toFixed(2)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm font-medium text-muted-foreground">Total Losses:</span>
-                      <span className="text-sm font-semibold text-red-600 dark:text-red-500">
+                      <span className="text-sm font-semibold text-destructive">
                         {getCurrencySymbol(session.currency)}{totalLosses.toFixed(2)}
                       </span>
                     </div>
@@ -1189,7 +1189,7 @@ function SessionPageInner() {
               <Card className="shadow-sm">
                 <CardHeader>
                   <div className="flex items-center gap-2">
-                    <ArrowRight className="h-5 w-5 text-blue-500" />
+                    <ArrowRight className="h-5 w-5 text-primary" />
                     <CardTitle className="text-xl">Who Pays Whom</CardTitle>
                   </div>
                   <CardDescription className="mt-1">
@@ -1215,15 +1215,15 @@ function SessionPageInner() {
                           {/* Mobile: Clear single-line format */}
                           <div className="md:hidden space-y-3">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm shrink-0">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-destructive/15 text-destructive font-semibold text-sm shrink-0">
                                 {transfer.debtorName[0].toUpperCase()}
                               </div>
-                              <span className="text-base font-semibold text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                              <span className="text-base font-semibold text-destructive">{transfer.debtorName}</span>
                               <span className="text-sm text-muted-foreground">pays</span>
-                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm shrink-0">
+                              <div className="flex items-center justify-center w-9 h-9 rounded-full bg-success/15 text-success font-semibold text-sm shrink-0">
                                 {transfer.creditorName[0].toUpperCase()}
                               </div>
-                              <span className="text-base font-semibold text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                              <span className="text-base font-semibold text-success">{transfer.creditorName}</span>
                             </div>
                             <div className="flex items-center justify-end pt-1 border-t border-border/50">
                               <span className="font-mono font-bold text-lg text-foreground">
@@ -1234,17 +1234,17 @@ function SessionPageInner() {
                           {/* Desktop: Original layout */}
                           <div className="hidden md:flex items-center gap-3">
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold text-sm">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-destructive/15 text-destructive font-semibold text-sm">
                             {transfer.debtorName[0].toUpperCase()}
                           </div>
                           <span className="font-medium text-base">
-                            <span className="text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                            <span className="text-destructive">{transfer.debtorName}</span>
                             {" → "}
-                            <span className="text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                            <span className="text-success">{transfer.creditorName}</span>
                           </span>
                         </div>
                             <div className="flex items-center gap-2 shrink-0">
-                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold text-sm">
+                          <div className="flex items-center justify-center w-10 h-10 rounded-full bg-success/15 text-success font-semibold text-sm">
                             {transfer.creditorName[0].toUpperCase()}
                           </div>
                               <span className="font-mono font-bold text-lg text-foreground whitespace-nowrap">
@@ -1265,8 +1265,8 @@ function SessionPageInner() {
 
           {/* Balance Warning (if needed) */}
           {hasCashouts && totalsDontBalance && (
-            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-              <AlertDescription className="text-amber-900 dark:text-amber-200">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-amber-200">
                 <strong>Note:</strong> Totals may not balance due to rake taken during play.
               </AlertDescription>
             </Alert>
@@ -2100,9 +2100,9 @@ function ResultsStep({
             {playerResults.map((result) => {
               const plColor =
                 result.pl > BALANCE_TOLERANCE
-                  ? "text-green-600 dark:text-green-500"
+                  ? "text-success"
                   : result.pl < -BALANCE_TOLERANCE
-                  ? "text-red-600 dark:text-red-500"
+                  ? "text-destructive"
                   : "text-muted-foreground"
               return (
                 <Card key={result.player.id} className="border">
@@ -2149,9 +2149,9 @@ function ResultsStep({
                 {playerResults.map((result) => {
                   const plColor =
                     result.pl > BALANCE_TOLERANCE
-                      ? "text-green-600 dark:text-green-500"
+                      ? "text-success"
                       : result.pl < -BALANCE_TOLERANCE
-                      ? "text-red-600 dark:text-red-500"
+                      ? "text-destructive"
                       : "text-muted-foreground"
                   return (
                     <TableRow key={result.player.id} className="hover:bg-muted/50">
@@ -2176,8 +2176,8 @@ function ResultsStep({
           </div>
 
           {totalsDontBalance && (
-            <Alert className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-900">
-              <AlertDescription className="text-amber-900 dark:text-amber-200">
+            <Alert className="border-amber-500/30 bg-amber-500/10">
+              <AlertDescription className="text-amber-200">
                 <strong>Note:</strong> Totals may not balance due to rake taken during play.
               </AlertDescription>
             </Alert>
@@ -2216,9 +2216,9 @@ function ResultsStep({
                       {index + 1}
                     </div>
                     <span className="font-medium text-base">
-                      <span className="text-red-600 dark:text-red-500">{transfer.debtorName}</span>
+                      <span className="text-destructive">{transfer.debtorName}</span>
                       {" pays "}
-                      <span className="text-green-600 dark:text-green-500">{transfer.creditorName}</span>
+                      <span className="text-success">{transfer.creditorName}</span>
                     </span>
                   </div>
                   <span className="font-mono font-bold text-lg">
@@ -2459,7 +2459,7 @@ function MobilePlayerCard({
               {showPL ? `${result.pl > 0 ? "+" : ""}${sym}${result.pl.toFixed(2)}` : "—"}
             </span>
             {!isMissingBuyin && result.totalBuyins > 0 && (
-              <Check className="h-4 w-4 text-green-600 dark:text-green-500 shrink-0" />
+              <Check className="h-4 w-4 text-success shrink-0" />
             )}
           </div>
         </div>
@@ -2552,8 +2552,8 @@ function PlayersTable({
 
   const getPLColor = (pl: number, showPL: boolean) => {
     if (!showPL) return "text-muted-foreground/50"
-    if (pl > BALANCE_TOLERANCE) return "text-green-600 dark:text-green-500"
-    if (pl < -BALANCE_TOLERANCE) return "text-red-600 dark:text-red-500"
+    if (pl > BALANCE_TOLERANCE) return "text-success"
+    if (pl < -BALANCE_TOLERANCE) return "text-destructive"
     return "text-muted-foreground"
   }
 
@@ -2656,7 +2656,7 @@ function PlayersTable({
                           <div className="flex items-center gap-2">
                             <span>{result.player.name}</span>
                             {isMissingBuyin && (
-                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-700 dark:text-amber-500 border-amber-500/30">
+                              <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/30">
                                 No buy-in
                               </Badge>
                             )}
@@ -2826,16 +2826,16 @@ function EditPlayerDialog({
   
   const plColor =
     currentPL > BALANCE_TOLERANCE
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : currentPL < -BALANCE_TOLERANCE
-      ? "text-red-600 dark:text-red-500"
+      ? "text-destructive"
       : "text-muted-foreground"
 
   const previewPLColor =
     previewPL > BALANCE_TOLERANCE
-      ? "text-green-600 dark:text-green-500"
+      ? "text-success"
       : previewPL < -BALANCE_TOLERANCE
-      ? "text-red-600 dark:text-red-500"
+      ? "text-destructive"
       : "text-muted-foreground"
 
   // Handle updating player name
@@ -3104,8 +3104,8 @@ function EditPlayerDialog({
           {/* Success overlay */}
           {showSuccess && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/95 rounded-t-2xl animate-in fade-in duration-200">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-4">
-                <Check className="h-8 w-8 text-green-600" />
+              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-success/10 mb-4">
+                <Check className="h-8 w-8 text-success" />
               </div>
               <p className="text-lg font-semibold text-foreground">
                 {batchAddSuccessCount === 1 ? "Player Added" : `${batchAddSuccessCount} Players Added`}

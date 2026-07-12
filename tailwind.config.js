@@ -18,8 +18,10 @@ module.exports = {
         foreground: "hsl(var(--foreground))",
         primary: {
           DEFAULT: "hsl(var(--primary))",
+          deep: "hsl(var(--primary-deep))",
           foreground: "hsl(var(--primary-foreground))",
         },
+        success: "hsl(var(--success))",
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
           foreground: "hsl(var(--secondary-foreground))",
@@ -38,6 +40,7 @@ module.exports = {
         },
         card: {
           DEFAULT: "hsl(var(--card))",
+          raised: "hsl(var(--card-raised))",
           foreground: "hsl(var(--card-foreground))",
         },
       },
@@ -45,6 +48,8 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        card: "24px",
+        tile: "16px",
       },
       keyframes: {
         slotPulse: {

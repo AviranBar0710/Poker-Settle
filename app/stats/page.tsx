@@ -112,7 +112,7 @@ export default function StatsPage() {
 
   const RankIcon = ({ rank }: { rank: number }) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />
-    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />
+    if (rank === 2) return <Medal className="h-5 w-5 text-muted-foreground" />
     if (rank === 3) return <Medal className="h-5 w-5 text-orange-600" />
     return (
       <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold text-sm">
@@ -148,21 +148,21 @@ export default function StatsPage() {
                 const rank = index + 1
                 const plColor =
                   stat.totalPL > 0.01
-                    ? "text-green-600 dark:text-green-500"
+                    ? "text-success"
                     : stat.totalPL < -0.01
-                      ? "text-red-600 dark:text-red-500"
+                      ? "text-destructive"
                       : "text-muted-foreground"
                 const avgPlColor =
                   stat.avgPL > 0.01
-                    ? "text-green-600 dark:text-green-500"
+                    ? "text-success"
                     : stat.avgPL < -0.01
-                      ? "text-red-600 dark:text-red-500"
+                      ? "text-destructive"
                       : "text-muted-foreground"
                 const biggestColor =
                   stat.biggestWinSession > 0.01
-                    ? "text-green-600 dark:text-green-500"
+                    ? "text-success"
                     : stat.biggestWinSession < -0.01
-                      ? "text-red-600 dark:text-red-500"
+                      ? "text-destructive"
                       : "text-muted-foreground"
                 return (
                   <TableRow key={stat.profileId} className="hover:bg-muted/50">
@@ -211,21 +211,21 @@ export default function StatsPage() {
             const rank = index + 1
             const plColor =
               stat.totalPL > 0.01
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success"
                 : stat.totalPL < -0.01
-                  ? "text-red-600 dark:text-red-500"
+                  ? "text-destructive"
                   : "text-muted-foreground"
             const avgPlColor =
               stat.avgPL > 0.01
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success"
                 : stat.avgPL < -0.01
-                  ? "text-red-600 dark:text-red-500"
+                  ? "text-destructive"
                   : "text-muted-foreground"
             const biggestColor =
               stat.biggestWinSession > 0.01
-                ? "text-green-600 dark:text-green-500"
+                ? "text-success"
                 : stat.biggestWinSession < -0.01
-                  ? "text-red-600 dark:text-red-500"
+                  ? "text-destructive"
                   : "text-muted-foreground"
             return (
               <Card key={stat.profileId} className="border">

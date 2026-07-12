@@ -168,7 +168,7 @@ export default function ProfilePage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 shrink-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          className="h-9 w-9 shrink-0 text-success hover:text-success hover:bg-success/10"
                           onClick={handleSaveEdit}
                           disabled={isSaving}
                           aria-label="Save"
