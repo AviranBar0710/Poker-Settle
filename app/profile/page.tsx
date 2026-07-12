@@ -20,7 +20,8 @@ import {
   getSessionHistoryForProfile,
   type SessionHistoryEntry,
 } from "@/lib/stats/calc"
-import { ChevronLeft, ChevronRight, Pencil, LogOut, Check, X, Mail } from "lucide-react"
+import { ChevronLeft, ChevronRight, Pencil, LogOut, Check, X, Mail, SunMoon } from "lucide-react"
+import { ThemeToggle } from "@/components/ThemeToggle"
 
 const APP_VERSION = "0.1.0"
 
@@ -300,6 +301,16 @@ export default function ProfilePage() {
                   title="Email"
                   subtitle={email || "—"}
                 />
+
+                <div className="flex items-center gap-3 rounded-tile border bg-background/45 px-3 py-3">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                    <SunMoon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground">Appearance</p>
+                  </div>
+                  <ThemeToggle />
+                </div>
               </section>
 
               {/* Logout — demoted to ghost-danger (no red fill) */}

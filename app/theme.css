@@ -1,6 +1,8 @@
 /*
- * Poker Settle dark theme — docs/design/DESIGN_SYSTEM.md
- * Loaded after the :root block in globals.css so these values win the cascade.
+ * Poker Settle theme tokens — docs/design/DESIGN_SYSTEM.md
+ * Dark is the default (:root); :root.light overrides for day mode.
+ * The html element carries class "dark" or "light" (set pre-paint by the
+ * inline script in app/layout.tsx; toggled from Profile → Appearance).
  */
 :root {
   /* Design-system tokens (hex, for reference and non-Tailwind CSS) */
@@ -47,4 +49,49 @@
   --input: 145 37% 90% / 0.08;
   --ring: 147 69% 55%;
   --radius: 1rem;
+}
+
+/*
+ * Light (day) mode — approved mockup. Buttons keep a strong brand green;
+ * green/red used AS TEXT are darkened for contrast on light surfaces.
+ */
+:root.light {
+  --color-background: #f3f6f4;
+  --color-background-glow: #e7efe9;
+  --color-card-bg: #ffffff;
+  --color-card-bg-raised: #fbfdfb;
+  --color-inset-bg: rgba(13, 26, 18, 0.04);
+  --color-border: rgba(13, 26, 18, 0.1);
+  --color-text: #14231b;
+  --color-text-muted: #5b6b76;
+  --color-text-on-primary: #0d1a12;
+  --color-primary: #1fa55d;
+  --color-primary-deep: #13894f;
+  --color-success: #128a4d;
+  --color-danger: #d23b3b;
+  --color-success-tint: rgba(18, 138, 77, 0.1);
+  --color-danger-tint: rgba(210, 59, 59, 0.1);
+
+  --background: 140 14% 96%;           /* #f3f6f4 */
+  --foreground: 149 25% 9%;            /* #14231b */
+  --card: 0 0% 100%;                   /* #ffffff */
+  --card-foreground: 149 25% 9%;
+  --card-raised: 120 33% 99%;          /* #fbfdfb */
+  --popover: 0 0% 100%;
+  --popover-foreground: 149 25% 9%;
+  --primary: 148 68% 38%;              /* #1fa55d — readable on white, still brand green */
+  --primary-deep: 150 76% 31%;         /* #13894f */
+  --primary-foreground: 143 33% 8%;    /* dark text on green buttons (brand) */
+  --secondary: 140 20% 93%;            /* light raised surface */
+  --secondary-foreground: 149 25% 9%;
+  --muted: 140 15% 92%;
+  --muted-foreground: 204 13% 41%;     /* #5b6b76 */
+  --accent: 140 20% 93%;
+  --accent-foreground: 149 25% 9%;
+  --destructive: 0 63% 53%;            /* #d23b3b */
+  --destructive-foreground: 0 0% 100%;
+  --success: 150 77% 31%;              /* #128a4d */
+  --border: 149 25% 9% / 0.1;
+  --input: 149 25% 9% / 0.1;
+  --ring: 148 68% 38%;
 }

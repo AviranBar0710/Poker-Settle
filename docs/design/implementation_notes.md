@@ -404,6 +404,31 @@ Notes:
 
 Verification: `npm run build` ✓.
 
+### Feature — Light mode (user-approved interactive mockup)
+
+- **`theme.css`**: `:root.light` block overrides both token namespaces. Dark
+  stays the default on `:root`. Light palette per the approved mockup:
+  bg `#F3F6F4`, white cards, text `#14231B`. **Green/red used as text are
+  darkened for contrast** (`--primary` `#1FA55D`, `--success` `#128A4D`,
+  `--destructive` `#D23B3B`); button gradient uses the same primary pair, so
+  light-mode buttons are a slightly deeper green than the mockup's vivid
+  swatch — deliberate trade so every `text-primary`/`text-success` call site
+  is readable without touching components.
+- **`app/layout.tsx`**: `<html class="dark">` default + pre-paint inline
+  script reads `localStorage("theme")` (light/system/dark) and swaps the
+  class before first paint — no flash. `darkMode: ["class"]` was already set;
+  the three existing `dark:` variants (poker-card face/shadow, alert border)
+  now activate correctly in dark mode.
+- **`components/ThemeToggle.tsx`**: Light / System / Dark segmented pills;
+  persists preference, live-follows OS changes in System mode. Mounted in
+  **Profile → Account → Appearance** row per user request.
+- **Hands Chance in light mode** (user call-out): verified — card faces stay
+  white with `gray-200/300` state borders + shadow on the light background;
+  slot tiles are near-white with dashed muted borders; dark `+` icons; darker
+  green selection. No changes needed beyond the tokens.
+
+Verification: `npm run build` ✓.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,
