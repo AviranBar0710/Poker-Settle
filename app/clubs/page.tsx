@@ -158,7 +158,8 @@ export default function ClubsPage() {
     if (switchingClubId) return
     setSwitchingClubId(clubId)
     await setActiveClub(clubId)
-    setSwitchingClubId(null)
+    // Always land on the dashboard after switching clubs
+    router.push("/")
   }
 
   const handleCreateClub = async (e: React.FormEvent) => {
