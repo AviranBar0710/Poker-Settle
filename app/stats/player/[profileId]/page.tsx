@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import { ListRow } from "@/components/ui/list-row"
 import { NetResultCard } from "@/components/stats/NetResultCard"
 import { cn } from "@/lib/utils"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronRight } from "lucide-react"
+import { BackButton } from "@/components/layout/BackButton"
 import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
@@ -123,11 +124,7 @@ export default function PlayerGameHistoryPage() {
         <div className="max-w-2xl mx-auto space-y-5">
           {/* Detail-screen header: back + centered player name */}
           <div className="flex items-center gap-2">
-            <Link href="/stats">
-              <Button variant="ghost" size="icon" className="h-12 w-12 min-h-[48px] min-w-[48px] shrink-0">
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-            </Link>
+            <BackButton fallback="/stats" />
             <h1 className="text-lg font-bold tracking-tight text-foreground flex-1 text-center -ml-12 truncate">
               {playerName || "Player"}
             </h1>

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
@@ -20,8 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { BackButton } from "@/components/layout/BackButton"
 import {
-  ChevronLeft,
   ChevronRight,
   Check,
   Copy,
@@ -185,11 +184,7 @@ export default function ClubsPage() {
         <div className="max-w-md mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-2">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="h-12 w-12 min-h-[48px] min-w-[48px] shrink-0">
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-            </Link>
+            <BackButton />
             <h1 className="text-lg font-bold tracking-tight text-foreground flex-1 text-center -ml-12">
               My Clubs
             </h1>

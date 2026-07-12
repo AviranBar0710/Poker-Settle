@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 import { useAuth } from "@/contexts/AuthContext"
@@ -20,8 +19,9 @@ import {
   getSessionHistoryForProfile,
   type SessionHistoryEntry,
 } from "@/lib/stats/calc"
-import { ChevronLeft, ChevronRight, Pencil, LogOut, Check, X, Mail, SunMoon } from "lucide-react"
+import { ChevronRight, Pencil, LogOut, Check, X, Mail, SunMoon } from "lucide-react"
 import { ThemeToggle } from "@/components/ThemeToggle"
+import { BackButton } from "@/components/layout/BackButton"
 
 const APP_VERSION = "0.1.0"
 
@@ -180,11 +180,7 @@ export default function ProfilePage() {
         <div className="max-w-md mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-2">
-            <Link href="/">
-              <Button variant="ghost" size="icon" className="h-12 w-12 min-h-[48px] min-w-[48px] shrink-0">
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-            </Link>
+            <BackButton />
             <h1 className="text-lg font-bold tracking-tight text-foreground flex-1 text-center -ml-12">
               Profile
             </h1>

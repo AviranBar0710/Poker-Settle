@@ -429,6 +429,23 @@ Verification: `npm run build` ✓.
 
 Verification: `npm run build` ✓.
 
+### Fix — Back arrows return to the previous screen (user request)
+
+All four detail-header back arrows were hardcoded `Link`s (`/` or `/stats`),
+so "back" ignored where you actually came from.
+
+- New shared `components/layout/BackButton.tsx`: `router.back()` when
+  browser history exists, else `router.push(fallback)` (deep link/refresh
+  safety). Supports the ghost (default) and circular-secondary (Hands
+  Chance) variants.
+- Replaced in: Profile, My Clubs, Player stats (`fallback="/stats"`),
+  Hands Chance. Unused `Link`/`ChevronLeft` imports dropped.
+- Not changed (correct as-is): in-content buttons that name their target
+  ("Back to Stats", "Back to Home", "Go to Dashboard") and the wizard-step
+  "Back" buttons inside the session flow (stage navigation, not history).
+
+Verification: `npm run build` ✓.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,
