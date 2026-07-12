@@ -25,7 +25,7 @@ schemes resolve to the same values:
   /* Map to existing shadcn HSL variables (Tailwind consumes these) */
   --background: 210 37% 7%;        /* #0b1118 */
   --card: 212 33% 13%;             /* #16202c */
-  --primary: 130 23% 64%;          /* #8fb996 */
+  --primary: 147 69% 55%;          /* #3ddc84 */
   --primary-foreground: 140 33% 8%;/* #0d1a12 */
   --foreground: 140 32% 90%;       /* #dcefe4 */
   --muted-foreground: 210 17% 58%; /* #8294a5 */
@@ -53,7 +53,7 @@ Replace hits with semantic classes (`bg-card`, `text-muted-foreground`,
 
 | File | Change |
 |---|---|
-| `button.tsx` | `rounded-full`, `min-h-[48px]`, primary variant → sage gradient, add `ghost` (sage border) and keep `secondary` as surface style. Add `active:scale-[0.98]`. |
+| `button.tsx` | `rounded-full`, `min-h-[48px]`, primary variant → bold green gradient, add `ghost` (green border) and keep `secondary` as surface style. Add `active:scale-[0.98]`. |
 | `badge.tsx` | `rounded-full`, add `live` / `settled` / `role` variants with tinted bg + border. |
 | `card.tsx` | Radius 24px, gradient surface, `overflow-hidden`, 1px `border-border`. |
 | `input.tsx` | Inset-tile style, 48px min-height, focus = primary border (drop ring). |

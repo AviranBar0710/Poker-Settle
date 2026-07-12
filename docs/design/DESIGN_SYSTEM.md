@@ -1,7 +1,7 @@
 # Poker Settle — Design System
 
 Dark, inviting, mobile-first. Inspired by the approved Session Card prototype:
-near-black navy ground, sage green primary, bold green/red money values,
+near-black navy ground, bold green primary, bold green/red money values,
 pill-rounded shapes, subtle card-suit motifs.
 
 ---
@@ -27,14 +27,14 @@ All colors are exposed as CSS custom properties on `:root`.
 |---|---|---|
 | `--color-text` | `#DCEFE4` | Headings & primary text (light mint) |
 | `--color-text-muted` | `#8294A5` | Secondary text, labels, captions |
-| `--color-text-on-primary` | `#0D1A12` | Text on sage buttons (dark green-black) |
+| `--color-text-on-primary` | `#0D1A12` | Text on green buttons (dark green-black) |
 
 ### Brand & Semantic
 
 | Token | Value | Usage |
 |---|---|---|
-| `--color-primary` | `#8FB996` | Primary actions, active states, links (sage) |
-| `--color-primary-deep` | `#6E9A77` | Gradient bottom of primary buttons |
+| `--color-primary` | `#3DDC84` | Primary actions, active states, links (bold green) |
+| `--color-primary-deep` | `#2CB56C` | Gradient bottom of primary buttons |
 | `--color-success` | `#3DDC84` | Profit amounts, LIVE badge, positive feedback |
 | `--color-danger` | `#FF6B6B` | Loss amounts, destructive actions, errors |
 | `--color-success-tint` | `rgba(61, 220, 132, 0.12)` | Success badge/avatar backgrounds |
@@ -92,7 +92,7 @@ contract).
 | Variant | Style |
 |---|---|
 | **Primary** | `linear-gradient(160deg, var(--color-primary), var(--color-primary-deep))`, text `--color-text-on-primary`. One per screen. |
-| **Ghost** | Transparent bg, `1px solid rgba(143,185,150,0.35)` border, text `--color-primary`. Secondary actions. |
+| **Ghost** | Transparent bg, `1px solid rgba(61,220,132,0.35)` border, text `--color-primary`. Secondary actions. |
 | **Surface** | `--color-card-bg-raised` bg, `--color-border` border, text `--color-text`. Neutral actions (OAuth buttons, cancel). |
 | **Destructive** | `--color-danger-tint` bg, text `--color-danger`. Confirm-only contexts. |
 
