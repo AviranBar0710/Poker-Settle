@@ -84,7 +84,7 @@ In `globals.css`:
 4. Session create/edit (create dialog → bottom sheet with segmented currency, player chips).
 5. Sessions list (`app/sessions/page.tsx`) — filter pills, compact SessionCards.
 6. Stats (`app/stats/page.tsx`, `app/stats/player/[profileId]`) — leaderboard rank rows, period selector.
-7. Session detail (`app/session/[id]`) — stage stepper bars, player lines, sticky CTA (heaviest screen: PlayerTable, sheets, FinalizationChecklist all live here).
+7. Session detail (`app/session/[id]`) — stage stepper bars, player lines, sticky CTA (heaviest screen: PlayerTable, sheets, FinalizationChecklist all live here). Covers all four in-session faces: buy-ins stage, chip entry (balance banner + chip inputs, gate CTA on balance), transactions record (timestamped rows, BUY-IN/CASHOUT badges), and settlement (transfer rows with paid checks, per-player results).
 8. Hands Chance (`features/handsChance/*`) — already dark; align greens to `--color-primary`, card picker tiles to the tile radius.
 9. Club switcher & members (`AppShell` menu, `app/club/members`, `app/join`) — club rows, join-code tile, ghost + primary CTAs.
 

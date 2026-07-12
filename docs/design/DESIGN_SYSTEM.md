@@ -149,10 +149,29 @@ live in the screen-sketches artifact.
 | 7 | Session Detail (live) | `app/session/[id]` | Stage stepper (progress bars + caption), stats strip, player lines, sticky Primary CTA |
 | 8 | Hands Chance | `app/tools/hands-chance` | Felt-green oval table, playing cards, empty card slots, win-% tags, card picker |
 | 9 | Club Switcher / Members | `AppShell` menu, `app/club/*` | Sheet, club rows with active check, join-code tile + copy chip, Ghost + Primary CTAs |
+| 10 | Chip Entry | `app/session/[id]` (stage `chip_entry`) | Stepper at stage 3/4, balance banner (off-balance = danger), player lines with right-aligned chip inputs, disabled Primary CTA until balanced |
+| 11 | Transactions Record | session detail (transactions view) | Totals strip with balance check, day dividers, timestamped rows with BUY-IN (muted) / CASHOUT (success) badges |
+| 12 | Settlement | `app/session/[id]` (stage `finalized`) | Balance banner (success), transfer rows (debtor → creditor with paid checkmarks), per-player results (in/out/net), Share ghost CTA |
 
 Screens 2, 5, 6 share the same top bar; 4 and 9 are bottom sheets over a dimmed
 dashboard. The playing-card component (screen 8) is the only place with a light
-surface — it keeps white cards for suit legibility.
+surface — it keeps white cards for suit legibility. Screens 7, 10, 11, 12 are
+the four faces of the live session: stage progress is always shown by the
+stepper (4 bars: setup → buy-ins → chip entry → settle) and money direction is
+always encoded by the success/danger pair.
+
+### Session-flow components (screens 10–12)
+
+- **Balance banner**: tile-radius strip stating whether the books balance.
+  Success tint + ✓ when buy-ins equal cashouts; danger tint + ⚠ with the
+  missing amount and remaining players when off. Always includes the detail
+  line — it answers "what do I do now".
+- **Chip input**: 92px right-aligned numeric input inside a player line,
+  tabular nums, green border once filled.
+- **Transaction badges**: BUY-IN is muted (money into the pot, not a result);
+  CASHOUT is success-tinted. Amounts stay neutral except cashouts.
+- **Transfer row**: `debtor → creditor` with green arrow, amount, and a tappable
+  round checkbox that fills green when the debt is marked paid.
 
 ---
 
