@@ -142,3 +142,36 @@ Deviations / deliberate keeps:
 ## Verification (step 6 pass)
 
 - `npm run build`: ✓ all 14 routes compile and prerender.
+
+## Layout pass (per layout_guide.md)
+
+### L1 — shared layout components
+
+Created the three shared primitives from layout_guide.md §1:
+
+- `components/layout/StickyCta.tsx` — mobile-only fixed bottom action bar,
+  background fade to `--background`, safe-area bottom padding. Pages using it
+  must add `pb-28 sm:pb-6`.
+- `components/ui/stat-strip.tsx` — one-row inset stat tiles (`rounded-tile`,
+  `bg-background/45`, uppercase 11px label over 18px extrabold tabular value).
+  Optional `accent: "success" | "danger"` for result-money only.
+- `components/ui/list-row.tsx` — 36px tinted avatar circle + title/subtitle +
+  right-aligned slot. Renders as `Link` when `href` given, `button` when
+  `onClick` given, plain `div` otherwise; only interactive rows get the
+  `active:scale-[0.985]` press state.
+
+Deviations from the guide's snippets (all additive, none visual):
+
+- `StickyCta` and `StatStrip` accept an optional `className` for per-screen
+  tweaks (e.g. z-index coordination with dialogs).
+- `ListRow` gained an `onClick` variant (guide only showed `href`) — needed
+  for rows that open sheets/edit states (Profile display-name row, members
+  kebab) without wrapping the component in an extra `<button>`.
+- `StatStrip` labels get `whitespace-nowrap` and values `truncate` so long
+  currency values can't wrap the tile to two heights.
+- Not yet done: refactoring `SessionCard`'s internal tiles onto `StatStrip`
+  (guide §1 suggests it) — deferred to the dashboard screen pass so the card
+  changes once, together with its screen.
+
+Verification: `npm run build` ✓ (components compile; no call sites yet — they
+land screen-by-screen in the next passes).
