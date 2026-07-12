@@ -1477,6 +1477,9 @@ function SessionPageInner() {
               currency={session.currency}
               currentBalance={currentBalance}
               recentAmounts={recentCashoutAmounts}
+              existingCashouts={transactions.filter(
+                (t) => t.playerId === addCashoutPlayer.id && t.type === "cashout"
+              )}
               onSuccess={() => {
                 reloadTransactions()
                 reloadPlayers()
@@ -2754,6 +2757,11 @@ function EditPlayerDialog({
   const [editBuyinAmount, setEditBuyinAmount] = useState("")
   const [isSavingBuyinEdit, setIsSavingBuyinEdit] = useState(false)
 
+  // State for editing cash-outs (mirror of buy-in editing)
+  const [editingCashoutId, setEditingCashoutId] = useState<string | null>(null)
+  const [editCashoutAmount, setEditCashoutAmount] = useState("")
+  const [isSavingCashoutEdit, setIsSavingCashoutEdit] = useState(false)
+
   // Sync player name when player prop changes
   useEffect(() => {
     if (player) {
@@ -2895,6 +2903,74 @@ function EditPlayerDialog({
     } catch (err) {
       console.error("Unexpected error deleting buy-in:", err)
       setPlayerError("Failed to delete buy-in. Please try again.")
+    }
+  }
+
+  const handleStartEditCashout = (cashout: Transaction) => {
+    setEditingCashoutId(cashout.id)
+    setEditCashoutAmount(cashout.amount.toString())
+    setPlayerError(null)
+  }
+
+  const handleCancelEditCashout = () => {
+    setEditingCashoutId(null)
+    setEditCashoutAmount("")
+    setPlayerError(null)
+  }
+
+  const handleSaveCashoutEdit = async (cashoutId: string) => {
+    const newAmount = parseFloat(editCashoutAmount)
+    if (isNaN(newAmount) || newAmount < 0) {
+      setPlayerError("Please enter a valid amount")
+      return
+    }
+
+    setIsSavingCashoutEdit(true)
+    setPlayerError(null)
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .update({ amount: newAmount })
+        .eq("id", cashoutId)
+
+      if (error) {
+        console.error("Error updating cash-out:", error)
+        setPlayerError(`Failed to update cash-out: ${error.message}`)
+      } else {
+        setPlayerError(null)
+        setEditingCashoutId(null)
+        setEditCashoutAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error updating cash-out:", err)
+      setPlayerError("Failed to update cash-out. Please try again.")
+    } finally {
+      setIsSavingCashoutEdit(false)
+    }
+  }
+
+  const handleDeleteCashout = async (cashout: Transaction) => {
+    if (!window.confirm(`Delete cash-out of ${currency} ${cashout.amount.toFixed(2)}?`)) return
+
+    setPlayerError(null)
+    try {
+      const { error } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", cashout.id)
+
+      if (error) {
+        console.error("Error deleting cash-out:", error)
+        setPlayerError(`Failed to delete cash-out: ${error.message}`)
+      } else {
+        setEditingCashoutId(null)
+        setEditCashoutAmount("")
+        onTransactionUpdate?.()
+      }
+    } catch (err) {
+      console.error("Unexpected error deleting cash-out:", err)
+      setPlayerError("Failed to delete cash-out. Please try again.")
     }
   }
 
@@ -3363,6 +3439,87 @@ function EditPlayerDialog({
                 <p className="text-xs text-muted-foreground italic">
                   Cash-outs will be available when you start chip entry
                 </p>
+              )}
+
+              {/* Existing Cash-outs List - edit/delete to fix manager mistakes */}
+              {(currentPhase === "chip_entry" || currentPhase === "ready_to_finalize" || currentPhase === "finalized") && cashouts.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  <p className="text-xs font-medium text-muted-foreground">Existing Cash-outs:</p>
+                  {cashouts.map((cashout) => (
+                    <div key={cashout.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded border">
+                      {editingCashoutId === cashout.id ? (
+                        <>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={editCashoutAmount}
+                            onChange={(e) => setEditCashoutAmount(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                handleSaveCashoutEdit(cashout.id)
+                              } else if (e.key === "Escape") {
+                                handleCancelEditCashout()
+                              }
+                            }}
+                            min="0"
+                            step="0.01"
+                            className="flex-1 h-8 text-sm"
+                            autoFocus={false}
+                            disabled={isSavingCashoutEdit}
+                          />
+                          <Button
+                            onClick={() => handleSaveCashoutEdit(cashout.id)}
+                            size="sm"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2"
+                          >
+                            <Check className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={handleCancelEditCashout}
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2"
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            disabled={isSavingCashoutEdit}
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete cash-out"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="flex-1 text-sm font-mono">{currency} {cashout.amount.toFixed(2)}</span>
+                          <Button
+                            onClick={() => handleStartEditCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </Button>
+                          <Button
+                            onClick={() => handleDeleteCashout(cashout)}
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 px-2 text-destructive hover:text-destructive"
+                            title="Delete cash-out"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
 
               {/* Add Cash-out - Available in Chip Entry, Ready to Finalize, and Finalized (admin only) */}

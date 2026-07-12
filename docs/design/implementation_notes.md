@@ -377,6 +377,33 @@ Verification: `npm run build` ✓ (13 routes incl. new `/clubs`).
   → ActiveSessionBanner → Recent games. The stats are always on top; the
   live-game hero sits below them when one exists.
 
+### Feature — Editable cash-outs (user request)
+
+The table manager can now FIX a wrong cash-out instead of only stacking a
+second one. Two entry points, matching where managers already are:
+
+1. **`AddCashoutSheet`** (tap player row during chip entry): when the player
+   already has cash-outs, a "Recorded cash-outs" section appears at the top —
+   each row shows the amount with ✎ (loads the value into the input and
+   switches the sheet to *Fix Cash-out* mode: quick-amount grids hide, CTA
+   becomes "Update Cash-out", submit runs an UPDATE on that transaction) and
+   🗑 (confirm + DELETE). New optional props `existingCashouts` — the page
+   passes the player's cashout transactions it already holds.
+2. **`EditPlayerDialog`**: an "Existing Cash-outs" list (edit inline +
+   delete) mirroring the long-standing "Existing Buy-ins" pattern, shown in
+   chip_entry / ready_to_finalize / finalized for `canEdit` users.
+
+Notes:
+- Same phase/role gating as buy-in editing; RLS on `transactions` is the
+  enforcement (buy-in UPDATE/DELETE already relied on it).
+- Settlement recalculates automatically (it derives from transactions), so a
+  fix immediately corrects results — including on finalized sessions, which
+  matches existing buy-in-edit behavior.
+- `handleSubmit` in the sheet was deduplicated into `submitAmount` (it was a
+  copy of the insert logic).
+
+Verification: `npm run build` ✓.
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,

@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Player } from "@/types/player"
+import { Transaction } from "@/types/transaction"
 import { supabase } from "@/lib/supabaseClient"
 import { useKeyboardOffset } from "@/hooks/useKeyboardOffset"
 import {
@@ -15,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Loader2, Check } from "lucide-react"
+import { Loader2, Check, Pencil, Trash2 } from "lucide-react"
 import { getCurrencySymbol } from "@/lib/currency"
 import { cn } from "@/lib/utils"
 
@@ -52,6 +53,8 @@ interface AddCashoutSheetProps {
   currentBalance: number
   /** Last 3 amounts used in this session (common amounts) */
   recentAmounts?: number[]
+  /** This player's existing cash-outs — enables fix/delete when the manager made a mistake */
+  existingCashouts?: Transaction[]
   onSuccess?: () => void
   onToast?: (message: string) => void
 }
@@ -65,6 +68,7 @@ export function AddCashoutSheet({
   currency,
   currentBalance,
   recentAmounts = [],
+  existingCashouts = [],
   onSuccess,
   onToast,
 }: AddCashoutSheetProps) {
@@ -72,6 +76,8 @@ export function AddCashoutSheet({
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
   const [successAmount, setSuccessAmount] = React.useState<number | null>(null)
+  /** When set, the sheet updates this existing cash-out instead of inserting */
+  const [editingId, setEditingId] = React.useState<string | null>(null)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const keyboardOffset = useKeyboardOffset(open)
 
@@ -80,6 +86,7 @@ export function AddCashoutSheet({
     setError(null)
     setLoading(false)
     setSuccessAmount(null)
+    setEditingId(null)
   }, [])
 
   React.useEffect(() => {
@@ -106,17 +113,21 @@ export function AddCashoutSheet({
       setError(null)
       setLoading(true)
       try {
-        const id = generateUUID()
-        const { error: err } = await supabase.from("transactions").insert({
-          id,
-          session_id: sessionId,
-          club_id: clubId,
-          player_id: player.id,
-          type: "cashout",
-          amount: value,
-        })
+        const { error: err } = editingId
+          ? await supabase
+              .from("transactions")
+              .update({ amount: value })
+              .eq("id", editingId)
+          : await supabase.from("transactions").insert({
+              id: generateUUID(),
+              session_id: sessionId,
+              club_id: clubId,
+              player_id: player.id,
+              type: "cashout",
+              amount: value,
+            })
         if (err) {
-          setError(err.message ?? "Failed to add cash-out")
+          setError(err.message ?? (editingId ? "Failed to update cash-out" : "Failed to add cash-out"))
           setLoading(false)
           return
         }
@@ -129,8 +140,36 @@ export function AddCashoutSheet({
         setLoading(false)
       }
     },
-    [player, sessionId, clubId, onSuccess, onOpenChange]
+    [player, sessionId, clubId, editingId, onSuccess, onOpenChange]
   )
+
+  const handleStartEdit = (tx: Transaction) => {
+    setEditingId(tx.id)
+    setAmount(tx.amount.toFixed(2).replace(/\.00$/, ""))
+    setError(null)
+    requestAnimationFrame(() => inputRef.current?.focus())
+  }
+
+  const handleCancelEdit = () => {
+    setEditingId(null)
+    setAmount("")
+    setError(null)
+  }
+
+  const handleDelete = async (tx: Transaction) => {
+    if (!window.confirm(`Delete cash-out of ${getCurrencySymbol(currency as "USD" | "ILS" | "EUR")}${tx.amount.toFixed(2)}?`)) return
+    setError(null)
+    setLoading(true)
+    const { error: err } = await supabase.from("transactions").delete().eq("id", tx.id)
+    setLoading(false)
+    if (err) {
+      setError(err.message ?? "Failed to delete cash-out")
+      return
+    }
+    if (editingId === tx.id) handleCancelEdit()
+    onToast?.("Cash-out deleted")
+    onSuccess?.()
+  }
 
   const handleQuickAmount = (value: number) => {
     setError(null)
@@ -141,36 +180,7 @@ export function AddCashoutSheet({
     e.preventDefault()
     if (!player || !canSubmit || num === null || num === undefined || num <= 0)
       return
-
-    setError(null)
-    setLoading(true)
-
-    try {
-      const id = generateUUID()
-      const { error: err } = await supabase.from("transactions").insert({
-        id,
-        session_id: sessionId,
-        club_id: clubId,
-        player_id: player.id,
-        type: "cashout",
-        amount: num,
-      })
-
-      if (err) {
-        setError(err.message ?? "Failed to add cash-out")
-        setLoading(false)
-        return
-      }
-
-      onSuccess?.()
-      setLoading(false)
-      setSuccessAmount(num)
-      setTimeout(() => onOpenChange(false), 800)
-    } catch (err) {
-      setError((err as Error)?.message ?? "Something went wrong")
-    } finally {
-      setLoading(false)
-    }
+    await submitAmount(num)
   }
 
   if (!player) return null
@@ -185,7 +195,7 @@ export function AddCashoutSheet({
             <div className="rounded-full bg-success/15 p-4 mb-4">
               <Check className="h-12 w-12 text-success" />
             </div>
-            <p className="text-lg font-semibold">Cash-out added!</p>
+            <p className="text-lg font-semibold">{editingId ? "Cash-out updated!" : "Cash-out added!"}</p>
             <p className="text-muted-foreground mt-1">
               {player.name} · {getCurrencySymbol(currency as "USD" | "ILS" | "EUR")}{successAmount.toFixed(2)}
             </p>
@@ -193,7 +203,7 @@ export function AddCashoutSheet({
         ) : (
         <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1">
           <BottomSheetHeader>
-            <BottomSheetTitle>Add Cash-out</BottomSheetTitle>
+            <BottomSheetTitle>{editingId ? "Fix Cash-out" : "Add Cash-out"}</BottomSheetTitle>
             <BottomSheetDescription>
               {player.name} · Balance {formattedBalance}
             </BottomSheetDescription>
@@ -204,8 +214,66 @@ export function AddCashoutSheet({
             style={{ paddingBottom: `calc(1rem + ${keyboardOffset}px)` }}
           >
             <div className="space-y-4">
+              {/* Existing cash-outs — tap ✎ to fix a mistake, 🗑 to remove */}
+              {existingCashouts.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Recorded cash-outs
+                  </span>
+                  {existingCashouts.map((tx) => (
+                    <div
+                      key={tx.id}
+                      className={cn(
+                        "flex items-center gap-2 rounded-tile border bg-background/45 px-3 py-2",
+                        editingId === tx.id && "border-primary/40 bg-primary/10"
+                      )}
+                    >
+                      <span className="flex-1 font-mono text-base font-semibold tabular-nums">
+                        {getCurrencySymbol(currency as "USD" | "ILS" | "EUR")}
+                        {tx.amount.toFixed(2)}
+                      </span>
+                      {editingId === tx.id ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleCancelEdit}
+                          disabled={loading}
+                          className="h-10 px-3 text-sm text-muted-foreground"
+                        >
+                          Cancel
+                        </Button>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleStartEdit(tx)}
+                          disabled={loading}
+                          className="h-10 w-10"
+                          aria-label="Fix this cash-out"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(tx)}
+                        disabled={loading}
+                        className="h-10 w-10 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        aria-label="Delete this cash-out"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Common amounts from session (if any) */}
-              {recentAmounts.length > 0 && (
+              {!editingId && recentAmounts.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-sm font-medium text-muted-foreground">
                     Recently used
@@ -234,7 +302,8 @@ export function AddCashoutSheet({
                 </div>
               )}
 
-              {/* Quick amounts - primary, tap to submit instantly */}
+              {/* Quick amounts - primary, tap to submit instantly (hidden while fixing) */}
+              {!editingId && (
               <div className="space-y-2">
                 <span className="text-sm font-medium text-muted-foreground">
                   Quick amount (tap to add)
@@ -259,11 +328,12 @@ export function AddCashoutSheet({
                   ))}
                 </div>
               </div>
+              )}
 
-              {/* Custom amount - secondary */}
-              <div className="space-y-2 pt-2 border-t">
+              {/* Custom amount - secondary (primary while fixing) */}
+              <div className={cn("space-y-2", !editingId && "pt-2 border-t")}>
                 <Label htmlFor="add-cashout-amount" className="text-sm text-muted-foreground">
-                  Or enter custom amount
+                  {editingId ? "Corrected amount" : "Or enter custom amount"}
                 </Label>
                 <Input
                   ref={inputRef}
@@ -316,8 +386,10 @@ export function AddCashoutSheet({
               {loading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Adding…
+                  {editingId ? "Updating…" : "Adding…"}
                 </>
+              ) : editingId ? (
+                "Update Cash-out"
               ) : (
                 "Add Cash-out"
               )}
