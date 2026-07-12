@@ -137,13 +137,23 @@ export function AppShell({ children }: AppShellProps) {
               href="/clubs"
               onClick={closeSidebar}
               className={cn(
-                "flex items-center gap-2 w-full rounded-tile border px-3 py-2.5 text-sm transition-colors hover:bg-accent",
-                pathname === "/clubs" && "border-primary/40 bg-primary/10 text-primary"
+                "flex items-center gap-2.5 w-full rounded-tile border px-3 py-2 text-sm transition-colors hover:bg-accent",
+                pathname === "/clubs" && "border-primary/40 bg-primary/10"
               )}
             >
               <Users className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <span className="truncate flex-1 min-w-0 font-medium">
-                {activeClub ? activeClub.name : "Select Club"}
+              <span className="flex-1 min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Club
+                </span>
+                <span
+                  className={cn(
+                    "block truncate font-semibold text-foreground",
+                    pathname === "/clubs" && "text-primary"
+                  )}
+                >
+                  {activeClub ? activeClub.name : "Select Club"}
+                </span>
               </span>
               <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
             </Link>
