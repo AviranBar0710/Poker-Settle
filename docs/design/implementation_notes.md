@@ -248,3 +248,44 @@ Verification: `npm run build` ✓.
   removed.
 
 Verification: `npm run build` ✓.
+
+### L5 — Stats / Leaderboard + Player detail (layout_guide.md §5)
+
+`app/stats/page.tsx`:
+
+- **Table → ranked ListRows.** Both the `md:` `<Table>` and the mobile card
+  list were deleted; one `ListRow` list serves all breakpoints, capped at
+  `max-w-2xl`. Rank in the avatar circle (Crown gold / Medal 2–3 / number),
+  subtitle `X games · avg ±$Y`, right-aligned signed net. Rank-1 row gets
+  `border-primary/25`. Rows link to the player page (whole row is the tap
+  target — replaces the three separate in-cell links).
+  - **Deviation from guide:** subtitle shows **avg P/L** instead of the
+    guide's "win rate" — `PlayerStat` has no per-session series, and win rate
+    is only computable where history entries exist (player detail page has
+    it). Adding it to `calculatePlayerStats` is a small follow-up if wanted.
+  - **Deviation:** on the "My stats" tab the rank shown is the player's CLUB
+    rank (position in the full leaderboard), not "1" — renumbering a
+    one-row list would be meaningless.
+- **Tab strip → segmented pills** ("Club" / "My stats"), same pattern as the
+  Sessions filter pills. The boxed full-width tab bar is gone.
+- **StatStrip added** above the list: Games / Players / Total pot (sum of all
+  players' buy-ins — all derived from already-loaded data).
+- **Header**: root-screen H2 "Stats"; subtitle and the "Back to Dashboard"
+  button removed (Stats is a sidebar destination, not a detail screen).
+- The wrapping `Card` + "Leaderboard" CardHeader removed — rows sit on the
+  page. Unused imports (`Table*`, `BarChart3`, `Users`, `User`, `Link`)
+  dropped.
+
+`app/stats/player/[profileId]/page.tsx`:
+
+- **Header → detail-screen back row** (44px ghost `ChevronLeft` + centered
+  player name), replacing the H1 + "Back to Stats" button.
+- **NetResultCard hero added** (same shared component as Profile): all-time
+  net + Games / Win rate / Best night tiles, computed from the
+  already-loaded history entries.
+- **Table → history ListRows**: ♠ avatar, session name / date, right-aligned
+  signed P/L + chevron; whole row links to the session (replaces the
+  "View results" button column). Sparkline still deferred.
+- Data loading untouched on both pages.
+
+Verification: `npm run build` ✓.

@@ -2,25 +2,18 @@
 
 /**
  * Stats/Leaderboard display follows docs/stats_leaderboard_display.md
- * (readability, cross-platform).
+ * (readability, cross-platform) restructured per docs/design/layout_guide.md §5.
  */
 
 import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { AppShell } from "@/components/layout/AppShell"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+import { ListRow } from "@/components/ui/list-row"
+import { StatStrip } from "@/components/ui/stat-strip"
 import { cn } from "@/lib/utils"
-import { BarChart3, LogIn, Crown, Medal, Users, User } from "lucide-react"
+import { LogIn, Crown, Medal } from "lucide-react"
 import { getCurrencySymbol } from "@/lib/currency"
 import { useAuth } from "@/contexts/AuthContext"
 import { useClub } from "@/contexts/ClubContext"
@@ -108,203 +101,67 @@ export default function StatsPage() {
     [clubPlayerStats, user]
   )
 
+  const totalPot = useMemo(
+    () => clubPlayerStats.reduce((sum, p) => sum + p.totalBuyins, 0),
+    [clubPlayerStats]
+  )
+
   const currencySymbol = sessions[0]?.currency ? getCurrencySymbol(sessions[0].currency) : "$"
 
-  const RankIcon = ({ rank }: { rank: number }) => {
+  const rankOf = (stat: PlayerStat) =>
+    clubPlayerStats.findIndex((p) => p.profileId === stat.profileId) + 1
+
+  const RankAvatar = ({ rank }: { rank: number }) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />
     if (rank === 2) return <Medal className="h-5 w-5 text-muted-foreground" />
     if (rank === 3) return <Medal className="h-5 w-5 text-orange-600" />
-    return (
-      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-muted font-bold text-sm">
-        {rank}
-      </div>
-    )
+    return <>{rank}</>
   }
 
-  const LeaderboardTable = ({ stats }: { stats: PlayerStat[] }) => {
+  const formatSigned = (v: number) =>
+    `${v > 0 ? "+" : v < 0 ? "−" : ""}${currencySymbol}${Math.abs(v).toFixed(2)}`
+
+  const plColor = (v: number) =>
+    v > 0.01 ? "text-success" : v < -0.01 ? "text-destructive" : "text-muted-foreground"
+
+  const LeaderboardRows = ({ stats }: { stats: PlayerStat[] }) => {
     if (stats.length === 0) {
       return (
         <div className="text-center py-8 text-muted-foreground">
           <p>No stats yet</p>
+          <p className="text-sm mt-1">Play and finalize sessions to see stats here.</p>
         </div>
       )
     }
     return (
-      <>
-        <div className="hidden md:block border rounded-lg overflow-auto max-h-[min(70vh,40rem)]">
-          <Table>
-            <TableHeader>
-              <TableRow className="sticky top-0 z-10 bg-background border-b">
-                <TableHead className="font-semibold">Rank</TableHead>
-                <TableHead className="font-semibold">Player</TableHead>
-                <TableHead className="text-right font-semibold tabular-nums">Sessions</TableHead>
-                <TableHead className="text-right font-semibold tabular-nums">Total P/L</TableHead>
-                <TableHead className="text-right font-semibold tabular-nums">Avg P/L per session</TableHead>
-                <TableHead className="text-right font-semibold tabular-nums">Best Session</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {stats.map((stat, index) => {
-                const rank = index + 1
-                const plColor =
-                  stat.totalPL > 0.01
-                    ? "text-success"
-                    : stat.totalPL < -0.01
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                const avgPlColor =
-                  stat.avgPL > 0.01
-                    ? "text-success"
-                    : stat.avgPL < -0.01
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                const biggestColor =
-                  stat.biggestWinSession > 0.01
-                    ? "text-success"
-                    : stat.biggestWinSession < -0.01
-                      ? "text-destructive"
-                      : "text-muted-foreground"
-                return (
-                  <TableRow key={stat.profileId} className="hover:bg-muted/50">
-                    <TableCell>
-                      <RankIcon rank={rank} />
-                    </TableCell>
-                    <TableCell className="font-medium text-base">
-                      <Link
-                        href={`/stats/player/${stat.profileId}`}
-                        className="hover:underline cursor-pointer"
-                      >
-                        {stat.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums">
-                      <Link
-                        href={`/stats/player/${stat.profileId}`}
-                        className="hover:underline cursor-pointer"
-                      >
-                        {stat.totalSessions}
-                      </Link>
-                    </TableCell>
-                    <TableCell className={cn("text-right font-mono font-semibold tabular-nums", plColor)}>
-                      {stat.totalPL > 0 ? "+" : ""}
-                      {currencySymbol}
-                      {stat.totalPL.toFixed(2)}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-mono font-semibold tabular-nums", avgPlColor)}>
-                      {stat.avgPL > 0 ? "+" : ""}
-                      {currencySymbol}
-                      {stat.avgPL.toFixed(2)}
-                    </TableCell>
-                    <TableCell className={cn("text-right font-mono font-semibold tabular-nums", biggestColor)}>
-                      {stat.biggestWinSession > 0 ? "+" : ""}
-                      {currencySymbol}
-                      {stat.biggestWinSession.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="md:hidden space-y-4">
-          {stats.map((stat, index) => {
-            const rank = index + 1
-            const plColor =
-              stat.totalPL > 0.01
-                ? "text-success"
-                : stat.totalPL < -0.01
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-            const avgPlColor =
-              stat.avgPL > 0.01
-                ? "text-success"
-                : stat.avgPL < -0.01
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-            const biggestColor =
-              stat.biggestWinSession > 0.01
-                ? "text-success"
-                : stat.biggestWinSession < -0.01
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-            return (
-              <Card key={stat.profileId} className="border">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <RankIcon rank={rank} />
-                      <Link
-                        href={`/stats/player/${stat.profileId}`}
-                        className="font-medium text-base hover:underline cursor-pointer min-h-[44px] flex items-center"
-                      >
-                        {stat.name}
-                      </Link>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Sessions</p>
-                      <Link
-                        href={`/stats/player/${stat.profileId}`}
-                        className="font-mono font-semibold tabular-nums hover:underline cursor-pointer block min-h-[44px] flex items-center"
-                      >
-                        {stat.totalSessions}
-                      </Link>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Total P/L</p>
-                      <p className={cn("font-mono font-semibold tabular-nums", plColor)}>
-                        {stat.totalPL > 0 ? "+" : ""}
-                        {currencySymbol}
-                        {stat.totalPL.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Avg P/L per session</p>
-                      <p className={cn("font-mono font-semibold tabular-nums", avgPlColor)}>
-                        {stat.avgPL > 0 ? "+" : ""}
-                        {currencySymbol}
-                        {stat.avgPL.toFixed(2)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground mb-1">Best Session</p>
-                      <p className={cn("font-mono font-semibold tabular-nums", biggestColor)}>
-                        {stat.biggestWinSession > 0 ? "+" : ""}
-                        {currencySymbol}
-                        {stat.biggestWinSession.toFixed(2)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })}
-        </div>
-      </>
+      <div className="space-y-2">
+        {stats.map((stat) => {
+          const rank = rankOf(stat)
+          return (
+            <ListRow
+              key={stat.profileId}
+              href={`/stats/player/${stat.profileId}`}
+              avatar={<RankAvatar rank={rank} />}
+              title={stat.name}
+              subtitle={`${stat.totalSessions} ${stat.totalSessions === 1 ? "game" : "games"} · avg ${formatSigned(stat.avgPL)}`}
+              right={
+                <span className={cn("text-base font-extrabold tabular-nums", plColor(stat.totalPL))}>
+                  {formatSigned(stat.totalPL)}
+                </span>
+              }
+              className={cn(rank === 1 && "border-primary/25")}
+            />
+          )
+        })}
+      </div>
     )
   }
 
   return (
     <AppShell>
-      <div className="min-h-screen bg-background p-4 sm:p-6 overflow-x-hidden">
-        <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Statistics</h1>
-              <p className="text-muted-foreground mt-1 text-sm sm:text-base">
-                Club leaderboard and your personal stats
-              </p>
-            </div>
-            <Button
-              onClick={() => router.push("/")}
-              variant="outline"
-              size="lg"
-              className="w-full sm:w-auto"
-            >
-              Back to Dashboard
-            </Button>
-          </div>
+      <div className="min-h-screen p-4 sm:p-6 overflow-x-hidden">
+        <div className="max-w-2xl mx-auto space-y-5">
+          <h1 className="text-2xl font-bold tracking-tight">Stats</h1>
 
           {authLoading || isLoading ? (
             <div className="text-center py-12">
@@ -364,86 +221,45 @@ export default function StatsPage() {
             </Card>
           ) : (
             <>
-              {/* Tabs: min-h for 48px touch target per stats_leaderboard_display.md */}
-              <div className="flex rounded-lg border bg-muted/30 p-1">
-                <button
-                  type="button"
-                  onClick={() => setTab("club")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 rounded-md py-2.5 min-h-[48px] text-sm font-medium transition-colors",
-                    tab === "club"
-                      ? "bg-background text-foreground shadow"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Users className="h-4 w-4" />
-                  Club Stats
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTab("my")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 rounded-md py-2.5 min-h-[48px] text-sm font-medium transition-colors",
-                    tab === "my"
-                      ? "bg-background text-foreground shadow"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <User className="h-4 w-4" />
-                  My Stats
-                </button>
+              {/* Segmented pills — layout_guide.md §5 */}
+              <div className="flex gap-2">
+                {(
+                  [
+                    { id: "club", label: "Club" },
+                    { id: "my", label: "My stats" },
+                  ] as const
+                ).map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setTab(t.id)}
+                    className={cn(
+                      "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors min-h-[44px]",
+                      tab === t.id
+                        ? "border-primary/40 bg-primary/15 text-primary"
+                        : "text-muted-foreground"
+                    )}
+                  >
+                    {t.label}
+                  </button>
+                ))}
               </div>
 
-              {tab === "club" ? (
-                <>
-                  {/* Club Leaderboard */}
-                  <Card className="shadow-sm">
-                    <CardHeader>
-                      <div>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          <BarChart3 className="h-5 w-5" />
-                          Leaderboard
-                        </CardTitle>
-                        <CardDescription>
-                          All identified players, sorted by profit (finalized sessions only)
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <LeaderboardTable stats={clubPlayerStats} />
-                    </CardContent>
-                  </Card>
-                </>
-              ) : (
-                <>
-                  {/* My Stats – structured for future per-session history / timeline */}
-                  <Card className="shadow-sm">
-                    <CardHeader>
-                      <div>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          <User className="h-5 w-5" />
-                          My Stats
-                        </CardTitle>
-                        <CardDescription>
-                          Your performance across all finalized club sessions
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      {myPlayerStats.length === 0 ? (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <p>No stats yet</p>
-                          <p className="text-sm mt-1">
-                            Play and finalize sessions to see your stats here.
-                          </p>
-                        </div>
-                      ) : (
-                        <LeaderboardTable stats={myPlayerStats} />
-                      )}
-                    </CardContent>
-                  </Card>
-                </>
-              )}
+              <StatStrip
+                items={[
+                  { label: "Games", value: sessions.length },
+                  { label: "Players", value: clubPlayerStats.length },
+                  {
+                    label: "Total pot",
+                    value: `${currencySymbol}${totalPot.toLocaleString(undefined, {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}`,
+                  },
+                ]}
+              />
+
+              <LeaderboardRows stats={tab === "club" ? clubPlayerStats : myPlayerStats} />
             </>
           )}
         </div>
