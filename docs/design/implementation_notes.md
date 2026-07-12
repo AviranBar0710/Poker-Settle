@@ -337,6 +337,36 @@ note from the color sweep.
 
 Verification: `npm run build` ✓.
 
+### L8 — My Clubs screen (user-approved mockup)
+
+The sidebar club-switcher dropdown was replaced by a dedicated `/clubs`
+screen ("My Clubs"), per the HTML mockup approved by the user.
+
+- **New `app/clubs/page.tsx`**: detail header (back + centered title) →
+  active-club hero card (♣ watermark, initials avatar, role badge,
+  join-code tile with copy chip, Manage members / Link players ListRows) →
+  "Switch club" ListRows for the other clubs (tap = `setActiveClub`) →
+  bottom CTAs: "Join a club with code" (ghost → `/join`) and
+  "Create new club" (primary → dialog, logic moved from AppShell).
+- **Permissions**: UI is role-gated exactly as the old dropdown was —
+  join-code tile and management rows render only for `owner`/`admin` of the
+  active club; "Link players" additionally only for `slug === "base44"`.
+  RLS remains the real enforcement (members don't receive `join_code`);
+  the client gates are presentation only. No new queries — everything reads
+  from the existing `ClubContext`.
+- **AppShell slimmed**: the dropdown, `JoinCodeCopyRow`, and the create-club
+  dialog were deleted (~250 lines). The sidebar club button is now a tile
+  Link to `/clubs` (Users icon + name + chevron, active-state tint on
+  `/clubs`). Dropped now-unused state/imports (`useRouter`, `useIsDesktop`,
+  Dialog/Input/Label/Badge, seven lucide icons).
+- **Deviations from mockup**: the hero's "12 members · 43 games" meta line
+  was NOT implemented — member/game counts aren't in `ClubContext` and would
+  need new queries; caption shows "Active club" instead. Club switching on
+  `/clubs` doesn't need the old dropdown's session-page redirect dance (you
+  can't be on `/session/*` and `/clubs` at once).
+
+Verification: `npm run build` ✓ (13 routes incl. new `/clubs`).
+
 ### L6 — Session detail (layout_guide.md §6)
 
 Scoped to the guide's three layout moves; the phase state machine, handlers,
