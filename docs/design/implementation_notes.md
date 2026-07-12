@@ -231,3 +231,20 @@ Verification: `npm run build` ✓.
   skeleton" instruction.
 
 Verification: `npm run build` ✓.
+
+### L4 — Sessions (layout_guide.md §4)
+
+- **Data contract change (sanctioned by the guide):** the query dropped
+  `.not("finalized_at","is",null)` — the page now loads ALL club sessions,
+  ordered by `created_at` desc (was `finalized_at` desc, which can't order
+  live sessions). Filtering happens client-side.
+- **Filter pills** added (All / Live / Settled), pill segmented control,
+  default **All**. Active pill: `border-primary/40 bg-primary/15 text-primary`.
+- **Header**: "Session History" + subtitle → just "Games" at `text-2xl`
+  (root-screen header per guide §1; the pills make "history" wrong anyway).
+- Per-pill empty states ("No live games right now" / "No settled games yet");
+  the dashboard CTA shows only on the All pill.
+- `bg-background` dropped from the page div. Unused `Transaction` import
+  removed.
+
+Verification: `npm run build` ✓.
