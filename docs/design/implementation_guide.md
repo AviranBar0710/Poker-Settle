@@ -82,7 +82,13 @@ In `globals.css`:
 2. Dashboard (`app/page.tsx`, `AppShell`) — club pill header, stats strip, SessionCard list.
 3. Profile (`app/profile/page.tsx`) — avatar header, net-result card, history rows.
 4. Session create/edit (create dialog → bottom sheet with segmented currency, player chips).
-5. Remaining screens (stats, club members, session detail) inherit primitives; sweep for layout only.
+5. Sessions list (`app/sessions/page.tsx`) — filter pills, compact SessionCards.
+6. Stats (`app/stats/page.tsx`, `app/stats/player/[profileId]`) — leaderboard rank rows, period selector.
+7. Session detail (`app/session/[id]`) — stage stepper bars, player lines, sticky CTA (heaviest screen: PlayerTable, sheets, FinalizationChecklist all live here).
+8. Hands Chance (`features/handsChance/*`) — already dark; align greens to `--color-primary`, card picker tiles to the tile radius.
+9. Club switcher & members (`AppShell` menu, `app/club/members`, `app/join`) — club rows, join-code tile, ghost + primary CTAs.
+
+The full screen-to-component mapping is in `DESIGN_SYSTEM.md` § 4.
 
 ## Step 7 — Verify each pass
 

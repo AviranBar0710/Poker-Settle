@@ -133,7 +133,30 @@ Pill-shaped, 11–12px bold text, 6px×12px padding, tinted background + matchin
 
 ---
 
-## 4. Motifs & Depth
+## 4. Screen Inventory
+
+Every app screen and the components it is built from. Sketches for all nine
+live in the screen-sketches artifact.
+
+| # | Screen | Route(s) | Built from |
+|---|---|---|---|
+| 1 | Login / Register | `LoginGate`, `LoginDialog` | Suit-cluster hero, Surface buttons (OAuth), Primary button (email) |
+| 2 | Home / Dashboard | `app/page.tsx` | Top bar (menu + club pill + profile), stats strip, Session Cards |
+| 3 | Profile | `app/profile/page.tsx` | Big avatar, role badge, net-result card (watermark), stat tiles, history rows |
+| 4 | Create / Edit Session | dialog → bottom sheet | Sheet, input, segmented currency pills, player chips, Primary CTA |
+| 5 | Sessions (all) | `app/sessions/page.tsx` | Filter pills (All/Live/Settled), compact Session Cards |
+| 6 | Stats / Leaderboard | `app/stats/*` | Stats strip, ranked rows (rank number + avatar + net), period selector chip |
+| 7 | Session Detail (live) | `app/session/[id]` | Stage stepper (progress bars + caption), stats strip, player lines, sticky Primary CTA |
+| 8 | Hands Chance | `app/tools/hands-chance` | Felt-green oval table, playing cards, empty card slots, win-% tags, card picker |
+| 9 | Club Switcher / Members | `AppShell` menu, `app/club/*` | Sheet, club rows with active check, join-code tile + copy chip, Ghost + Primary CTAs |
+
+Screens 2, 5, 6 share the same top bar; 4 and 9 are bottom sheets over a dimmed
+dashboard. The playing-card component (screen 8) is the only place with a light
+surface — it keeps white cards for suit legibility.
+
+---
+
+## 5. Motifs & Depth
 
 - **Spade watermark**: oversized `♠` glyph, 5% primary color, rotated −12°,
   anchored to a card corner. Use sparingly — one per screen region.
