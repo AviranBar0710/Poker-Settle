@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient"
 import { formatDateDDMMYYYY } from "@/lib/utils"
+import { fetchAllRows } from "@/lib/supabasePaging"
 import type { Session } from "@/types/session"
 import type { Player } from "@/types/player"
 import type { Transaction } from "@/types/transaction"
@@ -33,12 +34,16 @@ export type OverallStats = {
  * Load finalized sessions for the active club.
  */
 export async function loadFinalizedSessions(activeClubId: string): Promise<Session[]> {
-  const { data, error } = await supabase
-    .from("sessions")
-    .select("*")
-    .eq("club_id", activeClubId)
-    .not("finalized_at", "is", null)
-    .order("finalized_at", { ascending: false })
+  const { data, error } = await fetchAllRows((from, to) =>
+    supabase
+      .from("sessions")
+      .select("*")
+      .eq("club_id", activeClubId)
+      .not("finalized_at", "is", null)
+      .order("finalized_at", { ascending: false })
+      .order("id")
+      .range(from, to)
+  )
 
   if (error) {
     console.error("Error loading sessions:", error)
@@ -64,10 +69,14 @@ export async function loadFinalizedSessions(activeClubId: string): Promise<Sessi
 export async function loadPlayers(sessionIds: string[]): Promise<Player[]> {
   if (sessionIds.length === 0) return []
 
-  const { data, error } = await supabase
-    .from("players")
-    .select("*")
-    .in("session_id", sessionIds)
+  const { data, error } = await fetchAllRows((from, to) =>
+    supabase
+      .from("players")
+      .select("*")
+      .in("session_id", sessionIds)
+      .order("id")
+      .range(from, to)
+  )
 
   if (error) {
     console.error("Error loading players:", error)
@@ -91,11 +100,15 @@ export async function loadPlayers(sessionIds: string[]): Promise<Player[]> {
 export async function loadTransactions(sessionIds: string[]): Promise<Transaction[]> {
   if (sessionIds.length === 0) return []
 
-  const { data, error } = await supabase
-    .from("transactions")
-    .select("*")
-    .in("session_id", sessionIds)
-    .order("created_at", { ascending: true })
+  const { data, error } = await fetchAllRows((from, to) =>
+    supabase
+      .from("transactions")
+      .select("*")
+      .in("session_id", sessionIds)
+      .order("created_at", { ascending: true })
+      .order("id")
+      .range(from, to)
+  )
 
   if (error) {
     console.error("Error loading transactions:", error)
