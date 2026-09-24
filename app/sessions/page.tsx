@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import { fetchAllRows } from "@/lib/supabasePaging"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,8 +63,22 @@ export default function SessionsHistoryPage() {
           if (sessionsList.length > 0) {
             const sessionIds = sessionsList.map((s) => s.id)
             const [transactionsRes, playersRes] = await Promise.all([
-              supabase.from("transactions").select("*").in("session_id", sessionIds),
-              supabase.from("players").select("id, session_id").in("session_id", sessionIds),
+              fetchAllRows((from, to) =>
+                supabase
+                  .from("transactions")
+                  .select("*")
+                  .in("session_id", sessionIds)
+                  .order("id")
+                  .range(from, to)
+              ),
+              fetchAllRows((from, to) =>
+                supabase
+                  .from("players")
+                  .select("id, session_id")
+                  .in("session_id", sessionIds)
+                  .order("id")
+                  .range(from, to)
+              ),
             ])
 
             const transactionsData = transactionsRes.data || []

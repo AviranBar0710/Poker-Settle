@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
+import { fetchAllRows } from "@/lib/supabasePaging"
 import { AppShell } from "@/components/layout/AppShell"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,13 +39,21 @@ export default function LinkPlayersPage() {
     setLoading(true)
     setError(null)
     try {
-      const { data: playersData, error: playersErr } = await supabase
-        .from("players")
-        .select("id, name, session_id, sessions(id, name, created_at)")
-        .eq("club_id", activeClubId)
-        .is("profile_id", null)
-        .order("name", { ascending: true })
-      if (playersErr) { setError(playersErr.message || "Failed to load"); setPlayers([]); return }
+      const { data: playersData, error: playersErr } = await fetchAllRows((from, to) =>
+        supabase
+          .from("players")
+          .select("id, name, session_id, sessions(id, name, created_at)")
+          .eq("club_id", activeClubId)
+          .is("profile_id", null)
+          .order("name", { ascending: true })
+          .order("id")
+          .range(from, to)
+      )
+      if (playersErr) {
+        setError((playersErr as { message?: string }).message || "Failed to load")
+        setPlayers([])
+        return
+      }
       const rows: UnlinkedPlayer[] = (playersData || [])
         .filter((p: { sessions?: unknown }) => p.sessions)
         .map((p) => {

@@ -1,5 +1,6 @@
 "use client"
 import { supabase } from "@/lib/supabaseClient"
+import { fetchAllRows } from "@/lib/supabasePaging"
 import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { AppShell } from "@/components/layout/AppShell"
@@ -140,8 +141,22 @@ function HomePageInner() {
           const sessionIds = sessionsList.map((s) => s.id)
           if (sessionIds.length > 0) {
             const [transactionsRes, playersRes] = await Promise.all([
-              supabase.from("transactions").select("*").in("session_id", sessionIds),
-              supabase.from("players").select("id, session_id").in("session_id", sessionIds),
+              fetchAllRows((from, to) =>
+                supabase
+                  .from("transactions")
+                  .select("*")
+                  .in("session_id", sessionIds)
+                  .order("id")
+                  .range(from, to)
+              ),
+              fetchAllRows((from, to) =>
+                supabase
+                  .from("players")
+                  .select("id, session_id")
+                  .in("session_id", sessionIds)
+                  .order("id")
+                  .range(from, to)
+              ),
             ])
             if (transactionsRes.data) {
               setTransactions(
