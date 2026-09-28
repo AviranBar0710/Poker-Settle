@@ -75,7 +75,7 @@ import { EmptyState } from "@/components/session/EmptyState"
 import { FinalizationChecklist } from "@/components/session/FinalizationChecklist"
 import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
 import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
-import { VoiceBuyinSheet } from "@/components/session/VoiceBuyinSheet"
+import { VoiceTransactionSheet, type VoiceTransactionType } from "@/components/session/VoiceTransactionSheet"
 import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
 import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
 import { InvitePlayersDialog } from "@/components/session/InvitePlayersDialog"
@@ -123,7 +123,7 @@ function SessionPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [actionsPlayerId, setActionsPlayerId] = useState<string | null>(null)
   const [addBuyinPlayer, setAddBuyinPlayer] = useState<Player | null>(null)
-  const [showVoiceBuyin, setShowVoiceBuyin] = useState(false)
+  const [voiceMode, setVoiceMode] = useState<VoiceTransactionType | null>(null)
   const isVoiceSupported = useSpeechRecognitionSupported()
   const [addCashoutPlayer, setAddCashoutPlayer] = useState<Player | null>(null)
   const [removePlayerConfirm, setRemovePlayerConfirm] = useState<Player | null>(null)
@@ -202,7 +202,7 @@ function SessionPageInner() {
       setShowShareDialog(false)
       setShowLinkIdentityDialog(false)
       setShowInviteDialog(false)
-      setShowVoiceBuyin(false)
+      setVoiceMode(null)
     }
   }, [isSidebarOpen])
 
@@ -848,7 +848,7 @@ function SessionPageInner() {
                 )}
                 {canEdit && currentPhase === "active_game" && isVoiceSupported && players.length > 0 && (
                   <Button
-                    onClick={() => setShowVoiceBuyin(true)}
+                    onClick={() => setVoiceMode("buyin")}
                     size="sm"
                     variant="outline"
                     className="gap-2"
@@ -873,6 +873,17 @@ function SessionPageInner() {
                       </span>
                     )}
                   </div>
+                )}
+                {canEdit && (currentPhase === "chip_entry" || currentPhase === "ready_to_finalize") && isVoiceSupported && players.length > 0 && (
+                  <Button
+                    onClick={() => setVoiceMode("cashout")}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Voice Cash-out
+                  </Button>
                 )}
                 {canEdit && currentPhase === "chip_entry" && (
                   <Button
@@ -1330,7 +1341,8 @@ function SessionPageInner() {
           {(hasCashouts || (canEdit && currentPhase === "chip_entry")) && (isFinalized || canEdit || (currentPhase === "ready_to_finalize" && !showSettlementDetails)) && (
             <div className="fixed bottom-0 left-0 right-0 z-40 md:hidden bg-gradient-to-t from-background via-background/95 to-transparent px-4 pt-6 pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.5rem))]">
               {!isFinalized ? (
-                <>
+                <div className="flex gap-2 items-start">
+                <div className="flex-1 min-w-0">
                   {currentPhase === "ready_to_finalize" && !showSettlementDetails && (
                     <Button 
                       onClick={() => setShowSettlementDetails(true)} 
@@ -1375,7 +1387,19 @@ function SessionPageInner() {
                       )}
                     </div>
                   )}
-                </>
+                </div>
+                {canEdit && (currentPhase === "chip_entry" || currentPhase === "ready_to_finalize") && isVoiceSupported && players.length > 0 && (
+                  <Button
+                    onClick={() => setVoiceMode("cashout")}
+                    size="icon"
+                    variant="outline"
+                    aria-label="Voice cash-out"
+                    className="h-12 w-12 shrink-0"
+                  >
+                    <Mic className="h-5 w-5" />
+                  </Button>
+                )}
+                </div>
               ) : (
                 <div className="space-y-2">
                   <Button 
@@ -1479,11 +1503,17 @@ function SessionPageInner() {
           />
         )}
 
-        {/* Voice Buy-in Sheet — "תוסיף 100 לגיא" / "add 200 to Michael" */}
-        {showVoiceBuyin && session && session.clubId && (
-          <VoiceBuyinSheet
-            open={showVoiceBuyin}
-            onOpenChange={setShowVoiceBuyin}
+        {/* Voice Buy-in / Cash-out Sheet — "תוסיף 100 לגיא" / "Michael cashed out 300" */}
+        {voiceMode && session && session.clubId && (
+          <VoiceTransactionSheet
+            key={voiceMode}
+            open={!!voiceMode}
+            onOpenChange={(open) => !open && setVoiceMode(null)}
+            type={voiceMode}
+            existingTotals={transactions.reduce<Record<string, number>>((acc, t) => {
+              if (t.type === voiceMode) acc[t.playerId] = (acc[t.playerId] ?? 0) + t.amount
+              return acc
+            }, {})}
             players={players}
             sessionId={sessionId}
             clubId={session.clubId}
@@ -1790,7 +1820,7 @@ function SessionPageInner() {
                   </Button>
                   {isVoiceSupported && players.length > 0 && (
                     <Button
-                      onClick={() => setShowVoiceBuyin(true)}
+                      onClick={() => setVoiceMode("buyin")}
                       size="icon"
                       variant="outline"
                       aria-label="Voice buy-in"

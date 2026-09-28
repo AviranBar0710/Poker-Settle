@@ -22,18 +22,41 @@ import { cn } from "@/lib/utils"
 import { getCurrencySymbol, type CurrencyCode } from "@/lib/currency"
 
 /**
- * Voice Buy-in Sheet — table manager says e.g. "תוסיף 100 לגיא" or "add 200 to Michael".
- * Flow: listen → parse → review (player + amount, both editable) → confirm → insert buy-in.
+ * Voice Transaction Sheet — table manager records a buy-in or cash-out by voice, e.g.
+ *   buy-in:   "תוסיף 100 לגיא" / "add 200 to Michael"
+ *   cash-out: "גיא יצא עם 450" / "Michael cashed out 300"
+ * Flow: listen → parse → review (player + amount, both editable) → confirm → insert transaction.
+ * The transaction type comes from the session phase (the `type` prop), not from the spoken verb.
  * Nothing is written without an explicit Confirm tap, so misheard commands are harmless.
  */
 
 type VoiceLang = "he-IL" | "en-US"
 const LANG_STORAGE_KEY = "voice-buyin-lang"
 
-const LANGS: { code: VoiceLang; label: string; example: string }[] = [
-  { code: "he-IL", label: "עברית", example: "תוסיף 100 לגיא" },
-  { code: "en-US", label: "English", example: "Add 200 to Michael" },
+export type VoiceTransactionType = "buyin" | "cashout"
+
+const LANGS: { code: VoiceLang; label: string }[] = [
+  { code: "he-IL", label: "עברית" },
+  { code: "en-US", label: "English" },
 ]
+
+const COPY: Record<
+  VoiceTransactionType,
+  { title: string; noun: string; cta: string; examples: Record<VoiceLang, string> }
+> = {
+  buyin: {
+    title: "Voice Buy-in",
+    noun: "buy-in",
+    cta: "Add Buy-in",
+    examples: { "he-IL": "תוסיף 100 לגיא", "en-US": "Add 200 to Michael" },
+  },
+  cashout: {
+    title: "Voice Cash-out",
+    noun: "cash-out",
+    cta: "Add Cash-out",
+    examples: { "he-IL": "גיא יצא עם 450", "en-US": "Michael cashed out 300" },
+  },
+}
 
 function readStoredLang(): VoiceLang {
   try {
@@ -56,25 +79,30 @@ function generateUUID(): string {
   })
 }
 
-interface VoiceBuyinSheetProps {
+interface VoiceTransactionSheetProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   players: Player[]
   sessionId: string
   clubId: string
   currency: string
+  type: VoiceTransactionType
+  /** Per-player total already recorded for this type — used to warn about duplicate cash-outs */
+  existingTotals?: Record<string, number>
   onSuccess?: () => void
 }
 
-export function VoiceBuyinSheet({
+export function VoiceTransactionSheet({
   open,
   onOpenChange,
   players,
   sessionId,
   clubId,
   currency,
+  type,
+  existingTotals = {},
   onSuccess,
-}: VoiceBuyinSheetProps) {
+}: VoiceTransactionSheetProps) {
   // Sheet is only mounted client-side after a tap, so reading storage in the initializer is safe
   const [lang, setLang] = React.useState<VoiceLang>(readStoredLang)
   const langChangedRef = React.useRef(false)
@@ -86,6 +114,7 @@ export function VoiceBuyinSheet({
   const [lastAdded, setLastAdded] = React.useState<string | null>(null)
   const keyboardOffset = useKeyboardOffset(open)
   const symbol = getCurrencySymbol(currency as CurrencyCode)
+  const copy = COPY[type]
 
   const handleFinalResult = React.useCallback(
     (alternatives: string[]) => {
@@ -159,14 +188,14 @@ export function VoiceBuyinSheet({
         session_id: sessionId,
         club_id: clubId,
         player_id: selectedPlayer.id,
-        type: "buyin",
+        type,
         amount: amountNum,
       })
       if (error) {
-        setSaveError(error.message ?? "Failed to add buy-in")
+        setSaveError(error.message ?? `Failed to add ${copy.noun}`)
         return
       }
-      const message = `Added ${symbol}${amountNum} buy-in for ${selectedPlayer.name}`
+      const message = `Added ${symbol}${amountNum} ${copy.noun} for ${selectedPlayer.name}`
       onSuccess?.()
       setLastAdded(message)
       setParsed(null)
@@ -206,16 +235,16 @@ export function VoiceBuyinSheet({
   })()
 
   const isListening = speech.status === "listening"
-  const currentLang = LANGS.find((l) => l.code === lang)!
+  const existingForSelected = selectedPlayer ? existingTotals[selectedPlayer.id] ?? 0 : 0
 
   return (
     <BottomSheet open={open} onOpenChange={onOpenChange}>
       <BottomSheetContent height="auto" className="flex flex-col max-h-[90vh]">
         <BottomSheetHeader>
-          <BottomSheetTitle>Voice Buy-in</BottomSheetTitle>
+          <BottomSheetTitle>{copy.title}</BottomSheetTitle>
           <BottomSheetDescription>
             Say the amount and the player, e.g.{" "}
-            <bdi dir="auto" className="font-medium text-foreground">{currentLang.example}</bdi>
+            <bdi dir="auto" className="font-medium text-foreground">{copy.examples[lang]}</bdi>
           </BottomSheetDescription>
         </BottomSheetHeader>
 
@@ -310,11 +339,11 @@ export function VoiceBuyinSheet({
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="voice-buyin-amount" className="text-sm text-muted-foreground">
+                  <Label htmlFor="voice-transaction-amount" className="text-sm text-muted-foreground">
                     Amount ({symbol})
                   </Label>
                   <Input
-                    id="voice-buyin-amount"
+                    id="voice-transaction-amount"
                     type="text"
                     inputMode="decimal"
                     value={amount}
@@ -328,6 +357,13 @@ export function VoiceBuyinSheet({
                     autoComplete="off"
                   />
                 </div>
+
+                {type === "cashout" && selectedPlayer && existingForSelected > 0 && (
+                  <p className="text-sm text-muted-foreground bg-muted rounded-md px-3 py-2" dir="auto">
+                    {selectedPlayer.name} already has {symbol}
+                    {existingForSelected} cashed out — this will be added on top.
+                  </p>
+                )}
 
                 {saveError && (
                   <p
@@ -369,7 +405,7 @@ export function VoiceBuyinSheet({
                   Add {symbol}{amountNum} to {selectedPlayer.name}
                 </span>
               ) : (
-                "Add Buy-in"
+                copy.cta
               )}
             </Button>
           </div>
