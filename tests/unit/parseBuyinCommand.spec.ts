@@ -89,3 +89,24 @@ test("phonetic keys line up across scripts", () => {
   expect(phoneticKey("גיא")).toBe(phoneticKey("Guy"))
   expect(phoneticKey("אבירן")).toBe(phoneticKey("Aviran"))
 })
+
+const cashoutCases: Array<[string, typeof hebrewPlayers, number, string]> = [
+  ["גיא יצא עם 450", hebrewPlayers, 450, "1"],
+  ["מיכאל סיים עם שלוש מאות", hebrewPlayers, 300, "2"],
+  ["לליאור נשארו 700", hebrewPlayers, 700, "3"],
+  ["קאש אאוט 250 לגיא", englishPlayers, 250, "1"],
+  ["יש למיכאל 600", englishPlayers, 600, "2"],
+  ["Michael cashed out 300", englishPlayers, 300, "2"],
+  ["Guy has 450 left", englishPlayers, 450, "1"],
+  ["cash out Lior with 1,200", englishPlayers, 1200, "3"],
+  ["Yossi finished with five hundred", englishPlayers, 500, "5"],
+]
+
+for (const [transcript, players, amount, playerId] of cashoutCases) {
+  test(`parses cash-out "${transcript}"`, () => {
+    const result = parseBuyinCommand(transcript, players)
+    expect(result.status, JSON.stringify(result)).toBe("ok")
+    expect(result.amount).toBe(amount)
+    expect(result.player?.id).toBe(playerId)
+  })
+}

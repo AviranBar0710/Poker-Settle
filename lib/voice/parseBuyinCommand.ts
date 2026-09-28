@@ -1,5 +1,6 @@
 /**
- * Voice buy-in command parser (Hebrew + English).
+ * Voice buy-in / cash-out command parser (Hebrew + English).
+ * The parser only extracts amount + player; the caller decides the transaction type.
  *
  * Turns a speech transcript such as
  *   "תוסיף 100 לגיא", "הוסף מאתיים למיכאל", "add 200 to Michael", "Guy two hundred"
@@ -308,6 +309,12 @@ const FILLER_WORDS = new Set(
     "שח", "ש", "צ'יפים", "ציפים", "צ'יפ", "ציפ", "זיטונים", "קנייה", "קניה", "כניסה", "ריביי", "בייאין",
     "ביין", "באיין", "בבקשה", "תודה", "אחי", "עבור", "בשביל", "קנה", "קנתה", "נכנס", "נכנסה", "שים",
     "תשים", "תשימי", "פלוס", "דולר", "דולרים", "יורו", "אוקיי", "טוב", "לשחקנ", "שחקנ", "שחקן", "ל", "ו",
+    // Cash-out phrasing — English
+    "cash", "cashed", "cashes", "cashing", "cashout", "cash-out", "out", "left", "leaves", "leaving",
+    "has", "had", "got", "finished", "ended", "final", "count", "total", "stack", "is", "at",
+    // Cash-out phrasing — Hebrew
+    "יצא", "יצאה", "יוצא", "יוצאת", "עם", "סיים", "סיימה", "נשאר", "נשארה", "נשארו", "לו", "לה", "יש",
+    "קאש", "אאוט", "קאשאאוט", "קאש-אאוט", "סגר", "סגרה", "סופי", "ספירה", "מוציא", "מוציאה", "הוציא",
   ].map(normalizeText)
 )
 
