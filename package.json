@@ -12,7 +12,8 @@
     "lint": "next lint",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug"
+    "test:e2e:debug": "playwright test --debug",
+    "test:unit": "playwright test -c playwright.unit.config.ts"
   },
   "dependencies": {
     "@radix-ui/react-collapsible": "^1.1.12",
