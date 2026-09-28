@@ -11,6 +11,7 @@ Poker Settle removes the manual bookkeeping from home poker games. It handles th
 - **Club Management** — Create or join clubs with invite codes; role-based membership (owner, admin, member)
 - **Session Lifecycle** — Stage-based flow from setup through active play to finalization
 - **Buy-in & Cashout Tracking** — Record multiple buy-ins and cashouts per player during a session
+- **Voice Buy-ins** — Table managers can say "תוסיף 100 לגיא" or "add 200 to Michael" to record a buy-in (Hebrew & English, confirmed before saving)
 - **Automatic Settlement** — Calculate net results and generate optimized transfer instructions
 - **Player Statistics** — Per-player historical stats across sessions
 - **Invite Links** — Share tokenized links so players can join a session directly

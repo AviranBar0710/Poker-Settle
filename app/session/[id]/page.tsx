@@ -37,7 +37,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { AppShell } from "@/components/layout/AppShell"
-import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus, ArrowRight, MoreVertical, Lock, UserPlus, Trash2 } from "lucide-react"
+import { Copy, Check, Pencil, X, Plus, ChevronDown, ChevronRight, Trophy, TrendingUp, TrendingDown, Minus, ArrowRight, MoreVertical, Lock, UserPlus, Trash2, Mic } from "lucide-react"
 import { cn, formatDateDDMMYYYY } from "@/lib/utils"
 import { getCurrencySymbol, type CurrencyCode } from "@/lib/currency"
 import { BALANCE_TOLERANCE, COPY_FEEDBACK_DELAY_MS, CLOSE_DELAY_MS } from "@/lib/session/constants"
@@ -75,6 +75,7 @@ import { EmptyState } from "@/components/session/EmptyState"
 import { FinalizationChecklist } from "@/components/session/FinalizationChecklist"
 import type { PlayerActionType } from "@/components/session/PlayerActionsSheet"
 import { AddBuyinSheet } from "@/components/session/AddBuyinSheet"
+import { VoiceBuyinSheet } from "@/components/session/VoiceBuyinSheet"
 import { AddCashoutSheet } from "@/components/session/AddCashoutSheet"
 import { RemovePlayerConfirmSheet } from "@/components/session/RemovePlayerConfirmSheet"
 import { InvitePlayersDialog } from "@/components/session/InvitePlayersDialog"
@@ -88,6 +89,7 @@ import {
 } from "@/components/ui/bottom-sheet"
 import { useSessionStage } from "@/hooks/useSessionStage"
 import { useLongPress } from "@/hooks/useLongPress"
+import { useSpeechRecognitionSupported } from "@/hooks/useSpeechRecognition"
 
 type Step = "setup" | "buyins" | "cashouts" | "results" | "share"
 
@@ -121,6 +123,8 @@ function SessionPageInner() {
   const [error, setError] = useState<string | null>(null)
   const [actionsPlayerId, setActionsPlayerId] = useState<string | null>(null)
   const [addBuyinPlayer, setAddBuyinPlayer] = useState<Player | null>(null)
+  const [showVoiceBuyin, setShowVoiceBuyin] = useState(false)
+  const isVoiceSupported = useSpeechRecognitionSupported()
   const [addCashoutPlayer, setAddCashoutPlayer] = useState<Player | null>(null)
   const [removePlayerConfirm, setRemovePlayerConfirm] = useState<Player | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
@@ -198,6 +202,7 @@ function SessionPageInner() {
       setShowShareDialog(false)
       setShowLinkIdentityDialog(false)
       setShowInviteDialog(false)
+      setShowVoiceBuyin(false)
     }
   }, [isSidebarOpen])
 
@@ -841,6 +846,17 @@ function SessionPageInner() {
                     </Button>
                   </>
                 )}
+                {canEdit && currentPhase === "active_game" && isVoiceSupported && players.length > 0 && (
+                  <Button
+                    onClick={() => setShowVoiceBuyin(true)}
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    <Mic className="h-4 w-4" />
+                    Voice Buy-in
+                  </Button>
+                )}
                 {canEdit && currentPhase === "active_game" && !hasCashouts && (
                   <div className="flex flex-col items-end gap-1">
                     <Button
@@ -1463,6 +1479,22 @@ function SessionPageInner() {
           />
         )}
 
+        {/* Voice Buy-in Sheet — "תוסיף 100 לגיא" / "add 200 to Michael" */}
+        {showVoiceBuyin && session && session.clubId && (
+          <VoiceBuyinSheet
+            open={showVoiceBuyin}
+            onOpenChange={setShowVoiceBuyin}
+            players={players}
+            sessionId={sessionId}
+            clubId={session.clubId}
+            currency={session.currency}
+            onSuccess={() => {
+              reloadTransactions()
+              reloadPlayers()
+            }}
+          />
+        )}
+
         {/* Add Cash-out Sheet (mobile-only) */}
         {addCashoutPlayer && session && session.clubId && (() => {
           const result = playerResults.find((r) => r.player.id === addCashoutPlayer.id)
@@ -1756,6 +1788,17 @@ function SessionPageInner() {
                     <Plus className="h-5 w-5 shrink-0" />
                     Add Player
                   </Button>
+                  {isVoiceSupported && players.length > 0 && (
+                    <Button
+                      onClick={() => setShowVoiceBuyin(true)}
+                      size="icon"
+                      variant="outline"
+                      aria-label="Voice buy-in"
+                      className="h-12 w-12 shrink-0"
+                    >
+                      <Mic className="h-5 w-5" />
+                    </Button>
+                  )}
                 </div>
                 {!hasCashouts && (
                   <div className="w-full">
